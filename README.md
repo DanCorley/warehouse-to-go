@@ -4,33 +4,23 @@ A tool to create local DuckDB representations of data warehouse sources, making 
 
 ## Installation
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/warehouse-to-go.git
-cd warehouse-to-go
-```
 
-2. Create and activate a virtual environment (recommended):
 ```bash
+# 1. Clone the repository:
+git clone https://github.com/dancorley/warehouse-to-go.git
+cd warehouse-to-go
+
+# 2. Create and activate a virtual environment (recommended)
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
+# 3. Install dependencies:
+pip install -e .
 ```
 
 ## Configuration
 
 The tool uses your dbt profile configuration from `~/.dbt/profiles.yml` for warehouse credentials. It will automatically use the first warehouse profile it finds, with the default target (usually 'dev').
-
-### Configuration Loading Order
-
-The tool loads configuration in the following order:
-1. Command line arguments (--profile, --target, etc.)
-2. `config.yml` file in the current directory (if it exists)
-3. Default configuration
 
 ### Default Configuration
 
@@ -73,6 +63,14 @@ To use a different config file, specify its path when running commands:
 warehouse-to-go extract --config my_config.yml
 ```
 
+### Configuration Loading Order
+
+The tool loads configuration in the following order:
+1. Command line arguments (--profile, --target, etc.)
+2. `config.yml` file in the current directory (if it exists)
+3. Default configuration
+
+
 ## Usage
 
 1. Initialize and test connections:
@@ -104,36 +102,8 @@ warehouse-to-go extract --profile my-project --target dev
 - Preserves all dbt profile settings:
   - Query tags
   - Session parameters
-  - Thread counts
   - Connection settings
-- Extracts warehouse source tables defined in dbt project
-- Limits row count per table (default: 10,000)
-- Processes data in batches to manage memory
+- Extracts warehouse source tables in dbt project
 - Creates DuckDB database with matching structure
 - Preserves database and schema names
-- Shows progress with rich progress bars
-- Supports source filtering
-- Includes dry-run capability
-
-## Development
-
-Install development dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-Run tests:
-```bash
-pytest
-```
-
-Format code:
-```bash
-black src tests
-isort src tests
-```
-
-Type checking:
-```bash
-mypy src
-``` 
+- Limits row count for faster development (default: 10,000)
