@@ -1,13 +1,12 @@
 from typing import Dict, List, Optional, Any
 import snowflake.connector
-import pandas as pd
-from pathlib import Path
+import pyarrow as pa
+import pyarrow.parquet as pq
 from dataclasses import dataclass
 import duckdb
 from rich.console import Console
 import tempfile
 import os
-import numpy as np
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
@@ -88,24 +87,20 @@ class SnowflakeExtractor:
             
         return self.conn
     
-    def _convert_df_for_duckdb(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert DataFrame to types compatible with DuckDB."""
-        # Replace NaN with None
-        df = df.replace({np.nan: None})
+    def _convert_arrow_for_duckdb(self, table: pa.Table) -> pa.Table:
+        """Convert Arrow table to types compatible with DuckDB."""
+        # Create a new schema with nullable types
+        new_fields = []
+        for field in table.schema:
+            if pa.types.is_integer(field.type):
+                new_type = pa.int64()
+            elif pa.types.is_floating(field.type):
+                new_type = pa.float64()
+            else:
+                new_type = field.type
+            new_fields.append(pa.field(field.name, new_type, nullable=True))
         
-        # Convert integer columns to Int64 (nullable integer)
-        for col in df.select_dtypes(include=['int']).columns:
-            df[col] = df[col].astype('Int64')
-            
-        # Convert float columns to float64
-        for col in df.select_dtypes(include=['float']).columns:
-            df[col] = df[col].astype('float64')
-            
-        # Convert datetime columns to strings to avoid timezone issues
-        # for col in df.select_dtypes(include=['datetime']).columns:
-            # df[col] = df[col].astype(str)
-            
-        return df
+        return table.cast(pa.schema(new_fields))
     
     def extract_tables(self, plan: Dict[str, List[Dict[str, Any]]]) -> None:
         """
@@ -117,7 +112,6 @@ class SnowflakeExtractor:
         Returns:
             Dictionary mapping table names to extracted DataFrames
         """
-        results = {}
         console = Console()
         schema_stats = {}  # Track stats by schema
         
@@ -169,37 +163,38 @@ class SnowflakeExtractor:
                         
                         # Fetch in batches
                         while True:
-                            df = cursor.fetch_pandas_all()
-                            if df is None or len(df) == 0:
+                            # Fetch Arrow table directly
+                            arrow_table = cursor.fetch_arrow_all()
+                            if arrow_table is None or arrow_table.num_rows == 0:
                                 break
                                 
                             # Convert types for DuckDB compatibility
-                            df = self._convert_df_for_duckdb(df)
+                            arrow_table = self._convert_arrow_for_duckdb(arrow_table)
                             
                             try:
-                                # Try writing directly to DuckDB
+                                # Write directly to DuckDB using Arrow
                                 duckdb_conn.execute(f"""
                                     CREATE OR REPLACE TABLE {full_table_name} AS 
-                                    SELECT * FROM table_name
+                                    SELECT * FROM arrow_table
                                 """)
-                                console.print(f"[green]✓[/green] {full_table_name}: {len(df):,} rows")
+                                console.print(f"[green]✓[/green] {full_table_name}: {arrow_table.num_rows:,} rows")
                             except Exception as e:
                                 # If direct write fails, try using parquet as intermediate
                                 with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
-                                    df.to_parquet(tmp.name)
+                                    pq.write_table(arrow_table, tmp.name)
                                     try:
                                         duckdb_conn.execute(f"DROP TABLE IF EXISTS {full_table_name}")
                                         duckdb_conn.execute(f"""
                                             CREATE TABLE {full_table_name} AS 
                                             SELECT * FROM parquet_scan('{tmp.name}')
                                         """)
-                                        console.print(f"[green]✓[/green] {full_table_name}: {len(df):,} rows")
+                                        console.print(f"[green]✓[/green] {full_table_name}: {arrow_table.num_rows:,} rows")
                                     finally:
                                         os.unlink(tmp.name)
                             
                             # Update schema stats
                             schema_stats[schema_key]['tables'] += 1
-                            schema_stats[schema_key]['rows'] += len(df)
+                            schema_stats[schema_key]['rows'] += arrow_table.num_rows
 
                             # Only process one batch if row_limit is hit
                             if self.config.extract.row_limit:
