@@ -1,0 +1,150 @@
+version: 2
+
+sources:
+  - name: sf1
+    database: snowflake_sample_data
+    description: snowflake sample data containing tpc-h and tpc-ds benchmark datasets
+    schema: tpch_sf1
+    tables:
+      - name: customer
+        description: customer data as defined by tpc-h
+      - name: lineitem
+        description: lineitem data as defined by tpc-h
+      - name: nation
+        description: nation data as defined by tpc-h
+      - name: orders
+        description: orders data as defined by tpc-h
+      - name: part
+        description: part data as defined by tpc-h
+      - name: partsupp
+        description: partsupp data as defined by tpc-h
+      - name: region
+        description: region data as defined by tpc-h
+      - name: supplier
+        description: supplier data as defined by tpc-h
+
+  - name: sf10
+    database: snowflake_sample_data
+    description: tpc-h benchmark dataset at scale factor 10
+    schema: tpch_sf10
+    tables:
+      - name: customer
+        description: customer data as defined by tpc-h
+      - name: lineitem
+        description: lineitem data as defined by tpc-h
+      - name: nation
+        description: nation data as defined by tpc-h
+      - name: orders
+        description: orders data as defined by tpc-h
+      - name: part
+        description: part data as defined by tpc-h
+      - name: partsupp
+        description: partsupp data as defined by tpc-h
+      - name: region
+        description: region data as defined by tpc-h
+      - name: supplier
+        description: supplier data as defined by tpc-h
+
+  - name: sf100
+    database: snowflake_sample_data
+    description: tpc-h benchmark dataset at scale factor 100
+    schema: tpch_sf100
+    tables:
+      - name: customer
+        description: customer data as defined by tpc-h
+      - name: lineitem
+        description: lineitem data as defined by tpc-h
+      - name: nation
+        description: nation data as defined by tpc-h
+      - name: orders
+        description: orders data as defined by tpc-h
+      - name: part
+        description: part data as defined by tpc-h
+      - name: partsupp
+        description: partsupp data as defined by tpc-h
+      - name: region
+        description: region data as defined by tpc-h
+      - name: supplier
+        description: supplier data as defined by tpc-h
+
+  - name: sf1000
+    database: snowflake_sample_data
+    description: tpc-h benchmark dataset at scale factor 1000
+    schema: tpch_sf1000
+    tables:
+      - name: customer
+        description: customer data as defined by tpc-h
+      - name: lineitem
+        description: lineitem data as defined by tpc-h
+      - name: nation
+        description: nation data as defined by tpc-h
+      - name: orders
+        description: orders data as defined by tpc-h
+      - name: part
+        description: part data as defined by tpc-h
+      - name: partsupp
+        description: partsupp data as defined by tpc-h
+      - name: region
+        description: region data as defined by tpc-h
+      - name: supplier
+        description: supplier data as defined by tpc-h
+
+  - name: sf10tcl
+    database: snowflake_sample_data
+    description: tpc-ds benchmark dataset at scale factor 10
+    schema: tpcds_sf10tcl
+    tables:
+      - name: call_center
+      - name: catalog_page
+      - name: catalog_returns
+      - name: catalog_sales
+      - name: customer
+      - name: customer_address
+      - name: customer_demographics
+      - name: date_dim
+      - name: household_demographics
+      - name: income_band
+      - name: inventory
+      - name: item
+      - name: promotion
+      - name: reason
+      - name: ship_mode
+      - name: store
+      - name: store_returns
+      - name: store_sales
+      - name: time_dim
+      - name: warehouse
+      - name: web_page
+      - name: web_returns
+      - name: web_sales
+      - name: web_site
+
+  - name: sf100tcl
+    database: snowflake_sample_data
+    description: tpc-ds benchmark dataset at scale factor 100
+    schema: tpcds_sf100tcl
+    tables:
+      - name: call_center
+      - name: catalog_page
+      - name: catalog_returns
+      - name: catalog_sales
+      - name: customer
+      - name: customer_address
+      - name: customer_demographics
+      - name: date_dim
+      - name: household_demographics
+      - name: income_band
+      - name: inventory
+      - name: item
+      - name: promotion
+      - name: reason
+      - name: ship_mode
+      - name: store
+      - name: store_returns
+      - name: store_sales
+      - name: time_dim
+      - name: warehouse
+      - name: web_page
+      - name: web_returns
+      - name: web_sales
+      - name: web_site
