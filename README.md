@@ -2,23 +2,31 @@
 
 A tool to create local DuckDB representations of data warehouse sources, making it easy to use DuckDB as a replacement in dbt projects.
 
-<img src="./terminalizer_render.gif"/>
+<div align="center">
+  <img src="./terminalizer_render.gif"  style="max-width: 75%;" />
+</div>
 
-## Features
+## ✨ Features
 
-- Extracts warehouse source tables in dbt project
-- Creates DuckDB database with matching structure
-- Preserves database and schema names
-- Uses dbt profiles.yml for warehouse credentials
-- Supports all warehouse authentication methods:
-  - Password authentication
-  - Key-based authentication (with optional passphrase)
-- Preserves all dbt profile settings:
-  - Query tags
-  - Session parameters
-  - Connection settings
-- Limits row count for faster development (default: 10,000)
+### 🔄 Data Extraction
+- **Smart Source Analysis**: Automatically extracts warehouse source tables from your dbt project
+- **Row Limit Control**: Configurable row limits for faster development (default: 10,000 rows)
+- **Batch Processing**: Efficient data extraction with configurable batch sizes
+- **Schema Preservation**: Maintains original database and schema names for seamless integration
 
+### 🔐 Authentication & Configuration
+- **dbt Integration**: Seamlessly uses your existing `profiles.yml` for warehouse credentials
+- **Flexible Auth**: Supports multiple authentication methods:
+  - 🔑 Password authentication
+  - 🔐 Key-based authentication (with optional passphrase)
+- **Profile Settings**: Preserves all dbt profile configurations:
+  - 🏷️ Query tags
+  - ⚙️ Session parameters
+  - 🔌 Connection settings
+
+### 🚀 DuckDB Integration
+- **Automatic Schema Creation**: Creates DuckDB database with matching structure
+- **Development Ready**: Perfect for local development and testing
 
 ## Installation
 
