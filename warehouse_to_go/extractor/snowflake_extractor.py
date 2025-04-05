@@ -121,6 +121,10 @@ class SnowflakeExtractor:
         console = Console()
         schema_stats = {}  # Track stats by schema
         
+        # Calculate total tables across all schemas
+        total_tables = sum(len(tables) for tables in plan.values())
+        console.print(f"\n[bold]Starting extraction of {total_tables} tables...[/bold]\n")
+
         # Get connection
         conn = self._get_connection()
         
@@ -145,7 +149,6 @@ class SnowflakeExtractor:
                 duckdb_conn.execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
                 
                 # Extract each table
-                total_tables = len(tables)
                 for i, table in enumerate(tables, 1):
                     table_name = table['table_name']
                     full_table_name = f"{database}.{schema}.{table_name}"
