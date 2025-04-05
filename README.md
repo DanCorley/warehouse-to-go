@@ -2,8 +2,28 @@
 
 A tool to create local DuckDB representations of data warehouse sources, making it easy to use DuckDB as a replacement in dbt projects.
 
-## Installation
+<div align="center">
+  ![warehouse-to-go run](terminalizer_render.gif)
+</div>
 
+
+## Features
+
+- Extracts warehouse source tables in dbt project
+- Creates DuckDB database with matching structure
+- Preserves database and schema names
+- Uses dbt profiles.yml for warehouse credentials
+- Supports all warehouse authentication methods:
+  - Password authentication
+  - Key-based authentication (with optional passphrase)
+- Preserves all dbt profile settings:
+  - Query tags
+  - Session parameters
+  - Connection settings
+- Limits row count for faster development (default: 10,000)
+
+
+## Installation
 
 ```bash
 # 1. Clone the repository:
@@ -92,18 +112,3 @@ warehouse-to-go extract --source my_source --dry-run
 ```bash
 warehouse-to-go extract --profile my-project --target dev
 ```
-
-## Features
-
-- Uses dbt profiles.yml for warehouse credentials
-- Supports all warehouse authentication methods:
-  - Password authentication
-  - Key-based authentication (with optional passphrase)
-- Preserves all dbt profile settings:
-  - Query tags
-  - Session parameters
-  - Connection settings
-- Extracts warehouse source tables in dbt project
-- Creates DuckDB database with matching structure
-- Preserves database and schema names
-- Limits row count for faster development (default: 10,000)
