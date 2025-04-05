@@ -1,19 +1,17 @@
-from typing import Dict, List, Iterator, Optional, Any
+from typing import Dict, List, Optional, Any
 import snowflake.connector
 import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
 import duckdb
 from rich.console import Console
-from rich.live import Live
-from rich.text import Text
 import tempfile
 import os
 import numpy as np
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
-from warehouse_to_go.utils.config import Config, WarehouseConfig
+from warehouse_to_go.utils.config import Config
 
 @dataclass
 class ExtractionTask:
@@ -141,10 +139,6 @@ class SnowflakeExtractor:
                     'rows': 0
                 }
                 
-                # Set context
-                # conn.cursor().execute(f"USE DATABASE {database}")
-                # conn.cursor().execute(f"USE SCHEMA {schema}")
-                
                 # Attach database and create schema in DuckDB if they don't exist
                 duckdb_conn.execute(f"ATTACH IF NOT EXISTS DATABASE '{database}.duckdb' AS {database}")
                 duckdb_conn.execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
@@ -166,6 +160,7 @@ class SnowflakeExtractor:
                         # Execute query and fetch results
                         cursor = conn.cursor()
                         try:
+                            cursor.execute(f'USE WAREHOUSE {self.config.warehouse.warehouse}')
                             cursor.execute(query)
                         except Exception as e:
                             console.print(f"[red]✗[/red] {full_table_name}: Failed to extract - {str(e)}", style="red")
