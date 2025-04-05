@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warehouse-to-go"
+version = "0.1.0"
+description = "Tool to create local DuckDB representations of data warehouse sources from dbt projects"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "duckdb==1.2.1",
+    "snowflake-connector-python[pandas]==3.14.0",
+    "cryptography==44.0.2",
+    "PyYAML==6.0",
+    "typer==0.15.2",
+    "rich==14.0.0",
+    "pandas==2.2.2"
+]
+
+[project.scripts]
+warehouse-to-go = "warehouse_to_go.cli:app"
+
+[tool.setuptools]
+packages = ["warehouse_to_go"]

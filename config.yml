@@ -1,0 +1,23 @@
+# Example configuration file
+# Warehouse credentials must be set in your dbt profiles.yml file
+# This file allows specifying which profile and target to use
+
+warehouse:
+  # Optional: specify which dbt profile to use
+  # If not specified, will use the first warehouse profile found
+  # profile_name: my_profile
+  
+  # Optional: specify which target to use
+  # If not specified, will use the profile's default target
+  target: dev
+
+duckdb:
+  # Path to the DuckDB database file
+  database_path: warehouse_mirror.duckdb
+
+extract:
+  # Maximum number of rows to extract per table
+  row_limit: 10000
+  
+  # Number of rows to fetch at once
+  batch_size: 10000
