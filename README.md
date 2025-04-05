@@ -30,6 +30,11 @@ A tool to create local DuckDB representations of data warehouse sources, making 
 
 ## Installation
 
+<div align="center">
+  <p style="font-size: 18px"> Try it out with the sample dbt project -> <a href="./dbt/README.md">warehouse-to-go/dbt</p>
+</div>
+
+
 ```bash
 # 1. Clone the repository:
 git clone https://github.com/dancorley/warehouse-to-go.git
@@ -46,15 +51,6 @@ pip install -e .
 ## Configuration
 
 The tool uses your dbt profile configuration from `~/.dbt/profiles.yml` for warehouse credentials. It will automatically use the first warehouse profile it finds, with the default target (usually 'dev').
-
-### Default Configuration
-
-If no configuration is provided, the tool uses these defaults:
-- Uses the first warehouse profile found in your dbt profiles
-- Uses the profile's default target
-- Creates a DuckDB database named `warehouse_mirror.duckdb` in the current directory
-- Extracts up to 10,000 rows per table
-- Fetches data in batches of 10,000 rows
 
 ### Using a Config File
 
