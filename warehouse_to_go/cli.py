@@ -4,6 +4,7 @@ from rich.console import Console
 from rich.table import Table
 from typing import Optional
 import duckdb
+import os
 
 from warehouse_to_go.utils.config import Config
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
@@ -110,7 +111,7 @@ def debug(ctx: typer.Context):
         
         # Test DuckDB creation
         console.print("Testing DuckDB database creation...", style="yellow")
-        conn = duckdb.connect(str(config.duckdb.database_path))
+        conn = duckdb.connect(os.path.join('databases', str(config.duckdb.database_path)))
         conn.close()
         console.print("✅ DuckDB database creation successful!", style="green")
         

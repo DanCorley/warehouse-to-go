@@ -125,7 +125,8 @@ class SnowflakeExtractor:
         conn = self._get_connection()
         
         # Create DuckDB connection
-        duckdb_conn = duckdb.connect(str(self.config.duckdb.database_path))
+        os.makedirs('databases', exist_ok=True)
+        duckdb_conn = duckdb.connect(os.path.join('databases', str(self.config.duckdb.database_path)))
         
         try:
             # Process each database.schema
@@ -140,7 +141,7 @@ class SnowflakeExtractor:
                 }
                 
                 # Attach database and create schema in DuckDB if they don't exist
-                duckdb_conn.execute(f"ATTACH IF NOT EXISTS DATABASE '{database}.duckdb' AS {database}")
+                duckdb_conn.execute(f"ATTACH IF NOT EXISTS DATABASE 'databases/{database}.duckdb' AS {database}")
                 duckdb_conn.execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
                 
                 # Extract each table
