@@ -2,10 +2,7 @@
 
 A tool to create local DuckDB representations of data warehouse sources, making it easy to use DuckDB as a replacement in dbt projects.
 
-<div align="center">
-  ![warehouse-to-go run](./terminalizer_render.gif)
-</div>
-
+<img src="./terminalizer_render.gif"/>
 
 ## Features
 
