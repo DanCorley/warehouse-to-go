@@ -68,42 +68,23 @@ class ManifestParser:
                 
         return sources
 
-    def get_extraction_plan(self) -> Dict[str, List[Dict]]:
+    def get_extraction_plan(
+        self, sources: Dict[str, SourceConfig]
+    ) -> Dict[str, List[Dict]]:
         """
-        Generate a plan for extracting data from Snowflake.
-        Returns a dictionary mapping database.schema to list of tables.
+        Build the extraction plan from parsed sources.
+        Returns a dictionary mapping database.schema to list of table dicts.
         """
         extraction_plan = {}
-        
-        for source_name, source_config in self.sources.items():
+        for source_name, source_config in sources.items():
             key = f"{source_config.database}.{source_config.schema}"
-            if key not in extraction_plan:
-                extraction_plan[key] = []
-            
+            extraction_plan.setdefault(key, [])
             for table in source_config.tables:
                 extraction_plan[key].append({
                     'source_name': source_name,
                     'table_name': table.name,
                     'identifier': table.identifier,
                     'columns': table.columns,
-                    'meta': {**source_config.meta, **table.meta} if table.meta else source_config.meta
+                    'meta': {**source_config.meta, **table.meta} if table.meta else source_config.meta,
                 })
-        
         return extraction_plan
-
-def main():
-    # Example usage
-    manifest_path = Path('target/manifest.json')
-    parser = ManifestParser(manifest_path)
-    sources = parser.parse_manifest()
-    
-    # Print summary
-    print("\nSource Summary:")
-    for source_name, config in sources.items():
-        print(f"\nSource: {source_name}")
-        print(f"Database: {config.database}")
-        print(f"Schema: {config.schema}")
-        print(f"Tables: {len(config.tables)}")
-
-if __name__ == '__main__':
-    main()
