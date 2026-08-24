@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 import yaml
@@ -108,8 +108,8 @@ class Config:
     """Main configuration class for the application."""
     warehouse: WarehouseConfig
     duckdb: DuckDBConfig
-    extract: ExtractConfig = ExtractConfig()
-    manifest_path: Path = Path("target/manifest.json")
+    extract: ExtractConfig = field(default_factory=ExtractConfig)
+    manifest_path: Path = field(default_factory=lambda: Path("target/manifest.json"))
     
     @classmethod
     def from_env(cls) -> 'Config':
