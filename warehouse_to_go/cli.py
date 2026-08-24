@@ -1,12 +1,18 @@
 import typer
 from pathlib import Path
-from rich.console import Console
 from rich.table import Table
 from typing import Optional
 import duckdb
 import os
 
 from warehouse_to_go.utils.config import Config
+from warehouse_to_go.utils.output import (
+    print_info,
+    print_success,
+    print_status,
+    print_error,
+    print_debug,
+)
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
 from warehouse_to_go.extractor.snowflake_extractor import SnowflakeExtractor, test_connection
 
@@ -14,8 +20,9 @@ app = typer.Typer(
     name="warehouse-to-go",
     help="Tool to create local DuckDB representations of data warehouse sources from dbt projects.",
     add_completion=False,
+    rich_markup_mode=None,
 )
-console = Console()
+
 
 def get_config(
     config_path: Optional[Path] = None,
@@ -94,42 +101,42 @@ def main(
     app.manifest_path = manifest_path
 
 @app.command()
-def debug(ctx: typer.Context):
+def debug():
     """Initialize the configuration and test connections."""
     try:
         config = get_config(
-            ctx.parent.params["config_path"],
-            ctx.parent.params["profile"],
-            ctx.parent.params["target"],
-            ctx.parent.params["manifest_path"]
+            app.config_path,
+            app.profile,
+            app.target,
+            app.manifest_path,
         )
             
         # Test Snowflake connection
-        console.print("Testing Snowflake connection...", style="yellow")
+        print_status("Testing Snowflake connection...")
         test_connection(config)
-        console.print("✅ Snowflake connection successful!", style="green")
-        
+        print_success("Snowflake connection successful!")
+
         # Test DuckDB creation
-        console.print("Testing DuckDB database creation...", style="yellow")
-        conn = duckdb.connect(os.path.join('databases', str(config.duckdb.database_path)))
+        print_status("Testing DuckDB database creation...")
+        conn = duckdb.connect(str(config.duckdb.database_path))
         conn.close()
-        console.print("✅ DuckDB database creation successful!", style="green")
-        
-        console.print("✅ Configuration initialized successfully!", style="green")
-        
+        print_success("DuckDB database creation successful!")
+
+        print_success("Configuration initialized successfully!")
+
     except Exception as e:
-        console.print(f"❌ Error initializing configuration: {str(e)}", style="red")
+        print_error(f"Error initializing configuration: {str(e)}")
         raise typer.Exit(1)
 
 @app.command()
-def analyze(ctx: typer.Context):
+def analyze():
     """Analyze the manifest file and show source summary."""
     try:
         config = get_config(
-            ctx.parent.params["config_path"],
-            ctx.parent.params["profile"],
-            ctx.parent.params["target"],
-            ctx.parent.params["manifest_path"]
+            app.config_path,
+            app.profile,
+            app.target,
+            app.manifest_path,
         )
         parser = ManifestParser(config.manifest_path)
         sources = parser.parse_manifest()
@@ -149,15 +156,14 @@ def analyze(ctx: typer.Context):
                 str(len(config.tables))
             )
         
-        console.print(table)
-        
+        print_info(table)
+
     except Exception as e:
-        console.print(f"❌ Error analyzing manifest: {str(e)}", style="red")
+        print_error(f"Error analyzing manifest: {str(e)}")
         raise typer.Exit(1)
 
 @app.command()
 def extract(
-    ctx: typer.Context,
     source_filter: Optional[str] = typer.Option(
         None,
         "--source",
@@ -174,10 +180,10 @@ def extract(
     try:
         # Load config
         config = get_config(
-            ctx.parent.params["config_path"],
-            ctx.parent.params["profile"],
-            ctx.parent.params["target"],
-            ctx.parent.params["manifest_path"]
+            app.config_path,
+            app.profile,
+            app.target,
+            app.manifest_path,
         )
         
         # Parse manifest
@@ -188,44 +194,32 @@ def extract(
         if source_filter:
             filtered_sources = {k: v for k, v in sources.items() if k == source_filter}
             if not filtered_sources:
-                console.print(f"❌ No sources found matching filter: {source_filter}", style="red")
+                print_error(f"No sources found matching filter: {source_filter}")
                 raise typer.Exit(1)
             sources = filtered_sources
         
         # Get extraction plan
-        plan = {}
-        for source_name, source_config in sources.items():
-            key = f"{source_config.database}.{source_config.schema}"
-            if key not in plan:
-                plan[key] = []
-            
-            for table in source_config.tables:
-                plan[key].append({
-                    'source_name': source_name,
-                    'table_name': table.name,
-                    'identifier': table.identifier,
-                    'columns': table.columns,
-                    'meta': {**source_config.meta, **table.meta} if table.meta else source_config.meta
-                })
+        plan = parser.get_extraction_plan(sources)
         
         if dry_run:
-            console.print("\n📋 Extraction Plan (Dry Run):", style="bold cyan")
+            print_info("\n📋 Extraction Plan (Dry Run):", style="bold cyan")
             for db_schema, tables in plan.items():
-                console.print(f"\n[cyan]{db_schema}[/cyan]")
+                print_info(f"\n{db_schema}", style="cyan")
                 for table in tables:
-                    console.print(
+                    print_info(
                         f"  • {table['table_name']} "
-                        f"[dim](max {config.extract.row_limit:,} rows, "
-                        f"{config.extract.batch_size:,} per batch)[/dim]"
+                        f"(max {config.extract.row_limit:,} rows, "
+                        f"{config.extract.batch_size:,} per batch)",
+                        style="dim",
                     )
             return
 
         # Extract data
-        console.print("\n🚀 Starting extraction...", style="bold cyan")
+        print_info("\n🚀 Starting extraction...", style="bold cyan")
         with SnowflakeExtractor(config) as extractor:
             extractor.extract_tables(plan)
     except Exception as e:
-        console.print(f"[red]✗[/red] Error during extraction: {str(e)}", style="red")
+        print_error(f"Error during extraction: {str(e)}")
         raise typer.Exit(1)
 
 
