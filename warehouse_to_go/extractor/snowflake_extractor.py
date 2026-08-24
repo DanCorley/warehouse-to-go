@@ -4,7 +4,6 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
 import duckdb
-from rich.console import Console
 import tempfile
 import os
 import numpy as np
@@ -12,6 +11,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
 from warehouse_to_go.utils.config import Config
+from warehouse_to_go.utils.output import print_info, print_success, print_status, print_error
 
 @dataclass
 class ExtractionTask:
@@ -100,11 +100,7 @@ class SnowflakeExtractor:
         # Convert float columns to float64
         for col in df.select_dtypes(include=['float']).columns:
             df[col] = df[col].astype('float64')
-            
-        # Convert datetime columns to strings to avoid timezone issues
-        # for col in df.select_dtypes(include=['datetime']).columns:
-            # df[col] = df[col].astype(str)
-            
+
         return df
     
     def extract_tables(self, plan: Dict[str, List[Dict[str, Any]]]) -> None:
@@ -118,19 +114,19 @@ class SnowflakeExtractor:
             Dictionary mapping table names to extracted DataFrames
         """
         results = {}
-        console = Console()
         schema_stats = {}  # Track stats by schema
         
         # Calculate total tables across all schemas
         total_tables = sum(len(tables) for tables in plan.values())
-        console.print(f"\n[bold]Starting extraction of {total_tables} tables...[/bold]\n")
+        print_info(f"\nStarting extraction of {total_tables} tables...")
 
         # Get connection
         conn = self._get_connection()
         
         # Create DuckDB connection
-        os.makedirs('databases', exist_ok=True)
-        duckdb_conn = duckdb.connect(os.path.join('databases', str(self.config.duckdb.database_path)))
+        db_dir = Path(self.config.duckdb.database_path).parent
+        os.makedirs(db_dir, exist_ok=True)
+        duckdb_conn = duckdb.connect(str(self.config.duckdb.database_path))
         
         try:
             # Process each database.schema
@@ -145,7 +141,7 @@ class SnowflakeExtractor:
                 }
                 
                 # Attach database and create schema in DuckDB if they don't exist
-                duckdb_conn.execute(f"ATTACH IF NOT EXISTS DATABASE 'databases/{database}.duckdb' AS {database}")
+                duckdb_conn.execute(f"ATTACH IF NOT EXISTS DATABASE '{db_dir}/{database}.duckdb' AS {database}")
                 duckdb_conn.execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
                 
                 # Extract each table
@@ -153,7 +149,7 @@ class SnowflakeExtractor:
                     table_name = table['table_name']
                     full_table_name = f"{database}.{schema}.{table_name}"
                     
-                    with console.status(f"[bold blue]Extracting [{i}/{total_tables}] {full_table_name}...") as status:
+                    with print_status(f"Extracting [{i}/{total_tables}] {full_table_name}..."):
                         # Build query with row limit
                         query = f"""
                         SELECT *
@@ -167,7 +163,7 @@ class SnowflakeExtractor:
                             cursor.execute(f'USE WAREHOUSE {self.config.warehouse.warehouse}')
                             cursor.execute(query)
                         except Exception as e:
-                            console.print(f"[red]✗[/red] {full_table_name}: Failed to extract - {str(e)}", style="red")
+                            print_error(f"{full_table_name}: Failed to extract - {str(e)}")
                             continue
                         
                         # Fetch in batches
@@ -185,7 +181,7 @@ class SnowflakeExtractor:
                                     CREATE OR REPLACE TABLE {full_table_name} AS 
                                     SELECT * FROM table_name
                                 """)
-                                console.print(f"[green]✓[/green] {full_table_name}: {len(df):,} rows")
+                                print_success(f"{full_table_name}: {len(df):,} rows")
                             except Exception as e:
                                 # If direct write fails, try using parquet as intermediate
                                 with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
@@ -196,7 +192,7 @@ class SnowflakeExtractor:
                                             CREATE TABLE {full_table_name} AS 
                                             SELECT * FROM parquet_scan('{tmp.name}')
                                         """)
-                                        console.print(f"[green]✓[/green] {full_table_name}: {len(df):,} rows")
+                                        print_success(f"{full_table_name}: {len(df):,} rows")
                                     finally:
                                         os.unlink(tmp.name)
                             
@@ -214,8 +210,8 @@ class SnowflakeExtractor:
             duckdb_conn.close()
             
         # Print schema summary
-        console.print("\n[bold]Extraction Summary:[/bold]")
+        print_info("\nExtraction Summary:")
         for schema, stats in schema_stats.items():
-            console.print(f"  • {schema}: {stats['tables']} tables, {stats['rows']:,} rows")
+            print_info(f"  • {schema}: {stats['tables']} tables, {stats['rows']:,} rows")
             
         return
