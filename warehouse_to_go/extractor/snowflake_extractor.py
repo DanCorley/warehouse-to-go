@@ -118,9 +118,8 @@ class SnowflakeExtractor:
         db_dir = Path(self.config.duckdb.database_path).parent
         os.makedirs(db_dir, exist_ok=True)
         duckdb_conn = duckdb.connect(str(self.config.duckdb.database_path))
-        """this used to deal with out of range decimals
-        TODO: figure more elegant way to sample over batches
-        """
+        # This setting helps avoid issues with out-of-range decimals during Pandas type analysis.
+        # TODO: find a more elegant way to sample over batches.
         duckdb_conn.execute(f"SET GLOBAL pandas_analyze_sample = 10000")
         
         try:
