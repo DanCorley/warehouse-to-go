@@ -11,7 +11,6 @@ from warehouse_to_go.utils.output import (
     print_success,
     print_status,
     print_error,
-    print_debug,
 )
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
 from warehouse_to_go.extractor.snowflake_extractor import SnowflakeExtractor, test_connection
