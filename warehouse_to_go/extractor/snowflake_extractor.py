@@ -160,6 +160,8 @@ class SnowflakeExtractor:
                         except Exception as e:
                             print_error(f"{full_table_name}: Failed to extract - {str(e)}")
                             continue
+                        finally:
+                            cursor.close()
 
                         # Warehouse caps rows at row_limit. Chunk into
                         # ceil(row_limit / batch_size) batches; the final batch
