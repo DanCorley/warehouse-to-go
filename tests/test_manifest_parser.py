@@ -1,8 +1,6 @@
 from pathlib import Path
 
 import json
-import tempfile
-
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
 
 
@@ -34,7 +32,7 @@ def test_parse_manifest_groups_tables_by_source(tmp_path: Path) -> None:
     assert (my.database, my.schema) == ("db1", "s1")
     names = {t.name for t in my.tables}
     assert names == {"t1", "t2", "t3"}
-    assert my.tables[0].identifier == "t1"  # defaults to table_name
+    assert {t.identifier for t in my.tables} == names
 
     other = sources["other"]
     assert other.database == "db2"

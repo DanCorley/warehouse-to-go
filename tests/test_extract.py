@@ -53,7 +53,7 @@ def make_config(batch_size, tmp_path):
         warehouse=WarehouseConfig(
             account="ac", user="u", warehouse="wh", database="sdb", schema="ssch"
         ),
-        duckdb=DuckDBConfig(database_path=str(tmp_path / "mirror.duckdb")),
+        duckdb=DuckDBConfig(database_path=tmp_path / "mirror.duckdb"),
         extract=ExtractConfig(row_limit=10**9, batch_size=batch_size),
     )
 
@@ -79,7 +79,8 @@ def read_rows(conn):
 
 def test_roundtrip_single_batch(tmp_path):
     source = pd.DataFrame({"id": [1, 2, 3], "v": ["a", "b", "c"]})
-    conn = extract_with_batches(source.to_dict("records"), 3, tmp_path)
+    rows = list(source.itertuples(index=False, name=None))
+    conn = extract_with_batches(rows, 3, tmp_path)
     result = read_rows(conn)
     assert len(result) == 3
     assert [r[1] for r in result] == ["a", "b", "c"]
@@ -87,9 +88,8 @@ def test_roundtrip_single_batch(tmp_path):
 
 def test_roundtrip_multi_batch_keeps_all_rows_and_appends(tmp_path):
     source = pd.DataFrame({"id": list(range(5)), "v": [f"v{i}" for i in range(5)]})
-    rows = source.to_dict("records")
+    rows = list(source.itertuples(index=False, name=None))
     conn = extract_with_batches(rows, 2, tmp_path)  # batch_size 2 -> 3 batches
-
     result = read_rows(conn)
     assert len(result) == 5
     assert [r[0] for r in result] == list(range(5))
