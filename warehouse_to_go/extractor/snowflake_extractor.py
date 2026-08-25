@@ -4,7 +4,6 @@ import pandas as pd
 from pathlib import Path
 from dataclasses import dataclass
 import duckdb
-import tempfile
 import os
 import numpy as np
 from cryptography.hazmat.primitives import serialization
@@ -13,14 +12,6 @@ from cryptography.hazmat.backends import default_backend
 from warehouse_to_go.utils.config import Config
 from warehouse_to_go.utils.output import print_info, print_success, print_status, print_error
 
-@dataclass
-class ExtractionTask:
-    database: str
-    schema: str
-    table: str
-    columns: Optional[List[str]] = None
-    row_limit: int = 10000
-    batch_size: int = 10000
 
 def test_connection(config: Config) -> None:
     """Test Snowflake connection using the provided configuration."""
@@ -97,8 +88,8 @@ class SnowflakeExtractor:
         for col in df.select_dtypes(include=['int']).columns:
             df[col] = df[col].astype('Int64')
             
-        # Convert float columns to float64
-        for col in df.select_dtypes(include=['float']).columns:
+        # Convert inexact number columns to float64
+        for col in df.select_dtypes(include=['inexact']).columns:
             df[col] = df[col].astype('float64')
 
         return df
@@ -120,13 +111,17 @@ class SnowflakeExtractor:
         total_tables = sum(len(tables) for tables in plan.values())
         print_info(f"\nStarting extraction of {total_tables} tables...")
 
-        # Get connection
+        # Get warehouse connection
         conn = self._get_connection()
-        
+
         # Create DuckDB connection
         db_dir = Path(self.config.duckdb.database_path).parent
         os.makedirs(db_dir, exist_ok=True)
         duckdb_conn = duckdb.connect(str(self.config.duckdb.database_path))
+        """this used to deal with out of range decimals
+        TODO: figure more elegant way to sample over batches
+        """
+        duckdb_conn.execute(f"SET GLOBAL pandas_analyze_sample = 10000")
         
         try:
             # Process each database.schema
@@ -141,7 +136,7 @@ class SnowflakeExtractor:
                 }
                 
                 # Attach database and create schema in DuckDB if they don't exist
-                duckdb_conn.execute(f"ATTACH IF NOT EXISTS DATABASE '{db_dir}/{database}.duckdb' AS {database}")
+                duckdb_conn.execute(f"ATTACH IF NOT EXISTS DATABASE '{Path(db_dir) / database}.duckdb' AS {database}")
                 duckdb_conn.execute(f"CREATE SCHEMA IF NOT EXISTS {database}.{schema}")
                 
                 # Extract each table
@@ -165,44 +160,33 @@ class SnowflakeExtractor:
                         except Exception as e:
                             print_error(f"{full_table_name}: Failed to extract - {str(e)}")
                             continue
-                        
-                        # Fetch in batches
-                        while True:
-                            df = cursor.fetch_pandas_all()
-                            if df is None or len(df) == 0:
-                                break
-                                
-                            # Convert types for DuckDB compatibility
-                            df = self._convert_df_for_duckdb(df)
-                            
-                            try:
-                                # Try writing directly to DuckDB
-                                duckdb_conn.execute(f"""
-                                    CREATE OR REPLACE TABLE {full_table_name} AS 
-                                    SELECT * FROM table_name
-                                """)
-                                print_success(f"{full_table_name}: {len(df):,} rows")
-                            except Exception as e:
-                                # If direct write fails, try using parquet as intermediate
-                                with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
-                                    df.to_parquet(tmp.name)
-                                    try:
-                                        duckdb_conn.execute(f"DROP TABLE IF EXISTS {full_table_name}")
-                                        duckdb_conn.execute(f"""
-                                            CREATE TABLE {full_table_name} AS 
-                                            SELECT * FROM parquet_scan('{tmp.name}')
-                                        """)
-                                        print_success(f"{full_table_name}: {len(df):,} rows")
-                                    finally:
-                                        os.unlink(tmp.name)
-                            
-                            # Update schema stats
-                            schema_stats[schema_key]['tables'] += 1
-                            schema_stats[schema_key]['rows'] += len(df)
 
-                            # Only process one batch if row_limit is hit
-                            if self.config.extract.row_limit:
+                        # Warehouse caps rows at row_limit. Chunk into
+                        # ceil(row_limit / batch_size) batches; the final batch
+                        # holds the remainder from the division. 'df' is
+                        # auto-registered by DuckDB, so batch 0 seeds the table
+                        # and later batches append to it.
+                        row_limit = self.config.extract.row_limit
+                        batch_size = self.config.extract.batch_size
+                        num_batches = (row_limit + batch_size - 1) // batch_size
+                        fetched = 0
+                        for batch_number in range(num_batches):
+                            rows = cursor.fetchmany(size=batch_size)
+                            if not rows:
                                 break
+                            df = pd.DataFrame(rows, columns=[d[0] for d in cursor.description])
+                            df = self._convert_df_for_duckdb(df)
+                            if batch_number == 0:
+                                # create the table structure for type inference issues on the full dataset.
+                                duckdb_conn.execute(f"CREATE OR REPLACE TABLE {full_table_name} AS SELECT * FROM df LIMIT 0")
+                            duckdb_conn.execute(f"INSERT INTO {full_table_name} SELECT * FROM df")
+                            fetched += len(df)
+
+                        print_success(f"{full_table_name}: {fetched:,} rows")
+
+                        # Update schema stats
+                        schema_stats[schema_key]['tables'] += 1
+                        schema_stats[schema_key]['rows'] += fetched
                                 
                         cursor.close()
                         
