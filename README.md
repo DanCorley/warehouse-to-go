@@ -63,11 +63,9 @@ title: 'How warehouse-to-go works'
 ---
 flowchart LR
     A(["dbt<br/>manifest.json"]) -->|plan| B(["warehouse-to-go<br/>parse → connect → fetch"])
-    B -->|"typed Table<br/>(columns, types, rows)"| C
-    C -->|"Type registry<br/>(native → DuckDB)"| D
-    D -->|"write row-capped"| E
-    E -->|"ATTACH siblings<br/>into container"| F
-    F -->|"point dbt here"| G(["dbt<br/>models from source(...)"])
+    B -->|"capped Table<br/>(pyarrow: columns, types, rows)"| C
+    C -->|"sink: ATTACH sibling .duckdb per<br/>source database, write rows"| F
+    F -->|"point dbt here"| G(["dbt<br/>models from source(...)"]))
 
     subgraph disk["on disk — one sibling .duckdb per source database"]
         F
@@ -79,18 +77,18 @@ flowchart LR
 | **Manifest parser** | Turns `manifest.json` into a `db.schema → [tables]` extraction plan | Same for every warehouse |
 | **Config** | Picks the warehouse **type**, target, and where to write (`database_path`) | One selection point; no code forks |
 | **SourceAdapter** | `connect` / `test_connection` / `fetch` / `close` / `quote_ident` | All source knowledge (auth, SQL, types, namespace) lives here |
-| **Type registry** | Maps each warehouse's native type → DuckDB's type | Unit-testable; shared by adapter + sink |
-| **DuckDB sink** | Attaches the databases, creates schemas, writes typed rows | Never sees Snowflake vs. Postgres vs. BigQuery |
+| **Table payload** | `fetch()` yields a `Table` whose `rows` is a `pyarrow.Table` (columns, types, rows from source) | The sink consumes only this; no source-specific type knowledge needed |
+| **DuckDB sink** | Attaches the databases, creates schemas, writes each `Table` in one statement | Never sees Snowflake vs. Postgres vs. BigQuery |
 
-The connector between source and sink is a **typed intermediate** — each `fetch()` yields a `Table`
-object whose `rows` is a `pyarrow.Table` with column names, types, and nullability from the source.
-The sink writes each table with a single `CREATE OR REPLACE TABLE ... AS SELECT * FROM <arrow>` —
-no batching, no Python-object round-trip.
+The connector between source and sink is a **pyarrow-backed intermediate** — each `fetch()` yields a
+`Table` object whose `rows` is a `pyarrow.Table` carrying column names, types, and nullability from
+the source. The sink writes each table with a single `CREATE OR REPLACE TABLE ... AS SELECT * FROM
+<arrow>` — no batching, no Python-object round-trip.
 
 ## 🧠 Key design decisions (locked, so the architecture doesn't drift)
 
-1. **DuckDB is a pure sink.** The sink knows only `Type` + a `CatalogLayout`; it never knows which
-   warehouse the data came from. Add an adapter → no sink changes.
+1. **DuckDB is a pure sink.** The sink knows only a `Table` (a `pyarrow.Table`) + a `CatalogLayout`;
+   it never knows which warehouse the data came from. Add an adapter → no sink changes.
 2. **One database per namespace on disk.** The configured `database_path` is the **primary
    container** `.duckdb`. Every source namespace becomes its own **sibling** `.duckdb` in the
    container's directory. The sink `ATTACH`es each sibling and writes its schemas into the
@@ -226,11 +224,11 @@ manifest parsing, and tests change nothing.
 
 ## 🔎 What's tested
 
-The suite (15 tests) locks the machinery — nothing here should silently regress:
+The suite (7 tests) locks the machinery — nothing here should silently regress:
 
-- **Types** — Snowflake→DuckDB type mapping (`NUMBER(38,6)` → `DECIMAL(38,6)`, unknown → `DOUBLE`)
 - **Registry** — adapter dispatch by `warehouse.type`, clear error for unknown types
-- **Sink** — typed writes, multiple sibling databases, empty-table handling,
-  and a guard against writing to an unexpected database
-- **Config** — `from_dbt_profile` groups sources correctly and rejects unsupported warehouses
+- **Sink** — Arrow-based writes into multiple sibling databases, empty-table handling, and a
+  guard against writing to an unexpected database
+- **Config** — `from_dbt_profile` reads the warehouse `type` from the profile and validates the
+  selector against the registered adapters
 
