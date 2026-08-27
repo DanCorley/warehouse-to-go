@@ -5,7 +5,7 @@
 warehouse:
   # Optional: specify which dbt profile to use
   # If not specified, will use the first warehouse profile found
-  # profile_name: my_profile
+  profile_name: portable_warehouse
   
   # Optional: specify which target to use
   # If not specified, will use the profile's default target
