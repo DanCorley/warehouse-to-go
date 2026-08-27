@@ -30,5 +30,8 @@ clean-targets:         # directories to be removed by `dbt clean`
 # directory as tables. These settings can be overridden in the individual model
 # files using the `{{ config(...) }}` macro.
 models:
+  # dbt-polyglot configuration
+  +transpile_from: snowflake
+  +transpile_to: "{{ 'duckdb' if target.name == 'duck' else 'snowflake' }}"
   portable_warehouse:
     +materialized: table
