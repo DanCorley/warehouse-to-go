@@ -115,7 +115,6 @@ def debug():
         print_status("Testing warehouse connection...")
         adapter = get_adapter_factory(config.warehouse.type)(config)
         try:
-            adapter.connect(config)
             adapter.test_connection(config)
             print_success(f"{config.warehouse.type} connection successful!")
         finally:
