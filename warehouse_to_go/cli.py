@@ -229,7 +229,7 @@ def extract(
             layout = adapter.build_layout(config, plan)
             for db_schema, table_list in plan.items():
                 for table in table_list:
-                    full = f"{db_schema}.{table['table_name']}"
+                    full = f"{db_schema}.{table['identifier']}"
                     query = f"SELECT * FROM identifier('{full}')"
                     with print_status(f"Extracting {full}..."):
                         fetched = adapter.fetch(
@@ -249,6 +249,8 @@ def extract(
             print_error(f"Error during extraction: {str(e)}")
             adapter.close()
             raise typer.Exit(1)
+    except typer.Exit:
+        raise
     except KeyError as e:
         print_error(f"No adapter available for warehouse type: {e}")
         raise typer.Exit(1)

@@ -125,7 +125,7 @@ class Config:
         return cls(
             warehouse=WarehouseConfig.from_dbt_profile(),
             duckdb=DuckDBConfig(
-                database_path=Path(":memory:"),
+                database_path=Path("warehouse_mirror.duckdb"),
             ),
         )
     

@@ -38,11 +38,16 @@ def load(layout: CatalogLayout, tables: Iterable[Table] | Table) -> int:
     if isinstance(tables, Table):
         tables = [tables]
     primary_path = str(layout.primary)
+    if primary_path != ":memory:":
+        layout.primary.parent.mkdir(parents=True, exist_ok=True)
+    for db in layout.databases:
+        db.path.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(primary_path)
     try:
         for db in layout.databases:
             if str(db.path) != primary_path:
-                con.execute(f"ATTACH IF NOT EXISTS DATABASE '{db.path}' AS {_q(db.name)}")
+                escaped_path = str(db.path).replace("'", "''")
+                con.execute(f"ATTACH IF NOT EXISTS DATABASE '{escaped_path}' AS {_q(db.name)}")
             for schema in db.schemas:
                 parts = [_q(db.name)]
                 if schema:

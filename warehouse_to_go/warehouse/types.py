@@ -80,15 +80,18 @@ class Type:
     def from_native(cls, native: str) -> "Type":
         key = native.strip().upper().strip("'\"")
         base = key.split("(")[0].strip()
-        if base == "NUMBER":
-            return _number(native)
+        if base in {"NUMBER", "DECIMAL", "NUMERIC"}:
+            return _number(key)
         factory = _NATIVE_TO_TYPE.get(base)
         if factory is None:
             return cls("DOUBLE")  # unknown -> lose precision rather than fail
         return factory()
 
 
-_NUMBER_RE = re.compile(r"\s*NUMBER\s*\(\s*(-?\d+)\s*(?:,\s*(-?\d+)\s*)?\)", re.IGNORECASE)
+_NUMBER_RE = re.compile(
+    r"\s*(?:NUMBER|DECIMAL|NUMERIC)\s*\(\s*(-?\d+)\s*(?:,\s*(-?\d+)\s*)?\)",
+    re.IGNORECASE,
+)
 
 
 def _number(native: str) -> "Type":
@@ -139,5 +142,5 @@ _NATIVE_TO_TYPE: dict[str, Any] = {
 def print_native_map() -> None:  # pragma: no cover - debug aid
     print_info("Native type map:", style="bold dim")
     for name, factory in _NATIVE_TO_TYPE.items():
-        sample = str(factory("x") if callable(factory) else factory)
+        sample = Type.from_native(name).to_sql()
         print_info(f"  {name:20s} -> {sample}")
