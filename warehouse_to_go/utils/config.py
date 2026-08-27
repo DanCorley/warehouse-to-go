@@ -46,10 +46,13 @@ class WarehouseConfig:
             profiles = yaml.safe_load(f)
 
         # If profile_name not provided, use first profile that has a warehouse connection
+        from warehouse_to_go.warehouse import adapter_registry
         if not profile_name:
             for name, config in profiles.items():
                 if isinstance(config, dict) and 'outputs' in config:
                     for output_name, output_config in config['outputs'].items():
+                        if output_config.get("type") not in adapter_registry():
+                             continue
                         profile_name = name
                         target = target or output_name
                         break
