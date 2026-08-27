@@ -27,6 +27,14 @@ dev = [
 [project.scripts]
 warehouse-to-go = "warehouse_to_go.cli:app"
 
+# Adapter discovery. Adding a warehouse no longer touches this file or
+# `warehouse/__init__.py` -- a new adapter module only needs to implement the
+# `SourceAdapter` protocol and declare `@register("<type>")`. The package is
+# discovered here via an entry-point group (PEP 682). Add a new line per dialect
+# (module path only; the module self-registers on import):
+[project.entry-points."warehouse_to_go.adapters"]
+snowflake = "warehouse_to_go.warehouse.snowflake_adapter"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["warehouse_to_go*"]

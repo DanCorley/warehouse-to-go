@@ -125,7 +125,8 @@ warehouse:
 
   # Which adapter to use. Defaults to snowflake (Snowflake is the reference
   # adapter right now); post/anything else is selected automatically once the
-  # matching adapter is implemented.
+  # matching adapter is implemented. To contribute a new one, see
+  # [docs/add-adapter.md](docs/add-adapter.md).
   type: snowflake
 
 duckdb:
@@ -214,6 +215,34 @@ sibling-per-database model mirrors the warehouse and keeps each namespace isolat
 **Snowflake** is the reference adapter — implemented and verified end-to-end. Adding another
 warehouse means writing one file that implements the `SourceAdapter` protocol; the CLI, sink,
 manifest parsing, and tests change nothing.
+
+Want to contribute a new warehouse? The whole process is a **one-file change** — one new
+adapter module that self-registers via `@register("<type>")`. The module is discovered
+automatically through a **package entry point** declared in `pyproject.toml`; nothing in
+`warehouse/__init__.py` needs editing. See **[docs/add-adapter.md](docs/add-adapter.md)**
+for the step-by-step guide, the `SourceAdapter` protocol contract, and a copy-paste
+scaffold. Short version:
+
+```python
+# 1) warehouse_to_go/warehouse/<name>_adapter.py  (implements SourceAdapter)
+@register("<type>")
+class <Name>Adapter(SourceAdapter):
+    type_name = "<type>"
+    def connect(self, config): ...
+    def test_connection(self, config): ...
+    def fetch(self, query, columns, limit): ...
+    def close(self): ...
+    def quote_ident(self, reference): ...
+    def build_layout(self, config, plan): ...
+
+# 2) register the module in pyproject.toml under
+#    [project.entry-points."warehouse_to_go.adapters"]
+#    (e.g. <name> = "warehouse_to_go.warehouse.<name>_adapter"), then point a
+#    dbt profile at  type: <your type>. No __init__.py edits.
+```
+
+The sink, CLI, and manifest parser never change — your adapter only produces
+`pyarrow.Table` payloads, and "select it from `warehouse.type`" is all a user has to do.
 
 | Warehouse | Status |
 |---|---|

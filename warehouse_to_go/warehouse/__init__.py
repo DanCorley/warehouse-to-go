@@ -4,6 +4,7 @@ the warehouse-type registry. Intentionally free of any adapter implementation.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import importlib.metadata
 import pyarrow
 from dataclasses import dataclass, field
 from itertools import islice
@@ -20,6 +21,7 @@ __all__ = [
     "register",
     "adapter_registry",
     "get_adapter_factory",
+    "discover_adapters",
 ]
 
 
@@ -150,15 +152,43 @@ def clear_registry() -> None:  # pragma: no cover - test helper
 
 
 # --------------------------------------------------------------------------- #
-# Built-in adapters
+# Adapter discovery (PEP 682 entry points)
 # --------------------------------------------------------------------------- #
-# Each adapter module self-registers via the `@register` decorator when imported.
-# Import them here so `get_adapter_factory(warehouse.type)` works without the
-# caller having to import each adapter by hand. Add a new entry here for each
-# dialect you ship (e.g. "warehouse_to_go.warehouse.postgres_adapter").
-__ALL_ADAPTERS__ = [
-    "warehouse_to_go.warehouse.snowflake_adapter",
-]
+# Discovery replaces the old hard-coded `__ALL_ADAPTERS__` list. There is no
+# central module list to edit when adding a dialect: a new adapter module only
+# needs to implement `SourceAdapter` and self-register with `@register("<type>")`.
+# The list of adapter *modules* to import lives in `pyproject.toml` under the
+# `warehouse_to_go.adapters` entry-point group. On import we resolve those entry
+# points, load each adapter module (which runs its `@register` decorator and so
+# self-registers), and verify the expected type key landed in the registry so a
+# typo isn't silently ignored.
 
-for _module in __ALL_ADAPTERS__:
-    __import__(_module)
+_ENTRY_POINT_GROUP = "warehouse_to_go.adapters"
+
+
+def discover_adapters() -> Dict[str, Any]:
+    """Import every entry-point adapter module.
+
+    Returns a mapping of ``module_path -> module`` for the adapters discovered
+    via entry points this call. Loading a module runs its ``@register``
+    decorator, which self-registers the factory under ``<type_name>``. Any entry
+    point that fails to register its declared type raises a clear error.
+    """
+    discovered: Dict[str, Any] = {}
+    for entry_point in importlib.metadata.entry_points(group=_ENTRY_POINT_GROUP):
+        module = entry_point.load()  # imports the adapter module -> self-registers
+        discovered.setdefault(entry_point.name, module)
+        if entry_point.name not in _REGISTRY:
+            raise RuntimeError(
+                f"Adapter module {getattr(module, '__name__', entry_point.value)!r} "
+                f"was discovered via entry point {entry_point.name!r} but did not "
+                f"self-register under that type name. Ensure it applies "
+                f"`@register({entry_point.name!r})`."
+            )
+    return discovered
+
+
+# Auto-discover built-in adapters on import so `get_adapter_factory(warehouse.type)`
+# resolves without the caller importing each adapter module by hand.
+discover_adapters()
+
