@@ -18,6 +18,3 @@ duckdb:
 extract:
   # Maximum number of rows to extract per table
   row_limit: 10000
-  
-  # Number of rows to fetch at once
-  batch_size: 10000
