@@ -20,6 +20,10 @@ class WarehouseConfig:
     threads: int = 4
     client_session_keep_alive: bool = False
     query_tag: Optional[str] = None
+    # Dialect selector — the registry keys adapters off this. Defaults to
+    # Snowflake because this class (currently) only knows how to build
+    # Snowflake configs; Phase 3 makes `type` drive a generic builder.
+    type: str = "snowflake"
 
     @classmethod
     def from_dbt_profile(cls, profile_dir: Optional[Path] = None, profile_name: Optional[str] = None, target: Optional[str] = None) -> 'WarehouseConfig':
@@ -90,7 +94,7 @@ class WarehouseConfig:
                 "Expected one of: password, private_key_path"
             )
 
-        return cls(**warehouse_config)
+        return cls(type="snowflake", **warehouse_config)
 
 @dataclass
 class DuckDBConfig:
@@ -101,7 +105,6 @@ class DuckDBConfig:
 class ExtractConfig:
     """Configuration for data extraction settings."""
     row_limit: int = 10000  # Default limit of rows per table
-    batch_size: int = 10000  # Number of rows to fetch at once
 
 @dataclass
 class Config:
@@ -158,7 +161,6 @@ class Config:
             ),
             extract=ExtractConfig(
                 row_limit=config_dict.get("extract", {}).get("row_limit", 10000),
-                batch_size=config_dict.get("extract", {}).get("batch_size", 10000)
             ),
             manifest_path=manifest_path,
         )

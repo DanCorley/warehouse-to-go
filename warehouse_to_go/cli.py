@@ -13,12 +13,13 @@ from warehouse_to_go.utils.output import (
     print_error,
 )
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
-from warehouse_to_go.extractor.snowflake_extractor import SnowflakeExtractor, test_connection
+from warehouse_to_go.warehouse import get_adapter_factory
+from warehouse_to_go.sink import load as load_into_duckdb
 
 app = typer.Typer(
     name="warehouse-to-go",
     help="Tool to create local DuckDB representations of data warehouse sources from dbt projects.",
-    add_completion=False,
+    add_completion=True,
     rich_markup_mode=None,
 )
 
@@ -109,20 +110,27 @@ def debug():
             app.target,
             app.manifest_path,
         )
-            
-        # Test Snowflake connection
-        print_status("Testing Snowflake connection...")
-        test_connection(config)
-        print_success("Snowflake connection successful!")
 
-        # Test DuckDB creation
+        # Test the selected warehouse connection
+        print_status("Testing warehouse connection...")
+        adapter = get_adapter_factory(config.warehouse.type)(config)
+        try:
+            adapter.connect(config)
+            adapter.test_connection(config)
+            print_success(f"{config.warehouse.type} connection successful!")
+        finally:
+            adapter.close()
+
+        # Test DuckDB database creation
         print_status("Testing DuckDB database creation...")
-        conn = duckdb.connect(str(config.duckdb.database_path))
-        conn.close()
+        duckdb.connect(str(config.duckdb.database_path)).close()
         print_success("DuckDB database creation successful!")
 
         print_success("Configuration initialized successfully!")
 
+    except KeyError as e:
+        print_error(f"No adapter available for warehouse type: {e}")
+        raise typer.Exit(1)
     except Exception as e:
         print_error(f"Error initializing configuration: {str(e)}")
         raise typer.Exit(1)
@@ -175,7 +183,7 @@ def extract(
         help="Show what would be extracted without actually extracting",
     ),
 ):
-    """Extract data from Snowflake to DuckDB."""
+    """Extract data from the configured warehouse into DuckDB."""
     try:
         # Load config
         config = get_config(
@@ -207,16 +215,43 @@ def extract(
                 for table in tables:
                     print_info(
                         f"  • {table['table_name']} "
-                        f"(max {config.extract.row_limit:,} rows, "
-                        f"{config.extract.batch_size:,} per batch)",
+                        f"(max {config.extract.row_limit:,} rows)",
                         style="dim",
                     )
             return
 
-        # Extract data
-        print_info("\n🚀 Starting extraction...", style="bold cyan")
-        with SnowflakeExtractor(config) as extractor:
-            extractor.extract_tables(plan)
+        # Extract data through the adapter + sink
+        adapter = get_adapter_factory(config.warehouse.type)(config)
+        total = 0
+        try:
+            adapter.connect(config)
+            print_info("\n🚀 Starting extraction...", style="bold cyan")
+            layout = adapter.build_layout(config, plan)
+            for db_schema, table_list in plan.items():
+                for table in table_list:
+                    full = f"{db_schema}.{table['table_name']}"
+                    query = f"SELECT * FROM identifier('{full}')"
+                    with print_status(f"Extracting {full}..."):
+                        fetched = adapter.fetch(
+                            query,
+                            columns=table.get("columns"),
+                            limit=config.extract.row_limit,
+                        )
+                    n = load_into_duckdb(layout, fetched)
+                    total += n
+                    print_success(f"✓ {full}: {n:,} rows")
+            adapter.close()
+            source_tables = sum(len(t) for t in plan.values())
+            print_success(
+                f"\nExtracted {source_tables:,} tables, {total:,} rows"
+            )
+        except Exception as e:
+            print_error(f"Error during extraction: {str(e)}")
+            adapter.close()
+            raise typer.Exit(1)
+    except KeyError as e:
+        print_error(f"No adapter available for warehouse type: {e}")
+        raise typer.Exit(1)
     except Exception as e:
         print_error(f"Error during extraction: {str(e)}")
         raise typer.Exit(1)

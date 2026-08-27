@@ -18,7 +18,7 @@ def print_success(msg: str) -> None:
 
 def print_status(msg: str):
     """Transient status message (spinner). Returns a context manager."""
-    return console.status(msg, spinner="earth")
+    return console.status(msg, spinner="dots")
 
 
 def print_error(msg: str) -> None:
