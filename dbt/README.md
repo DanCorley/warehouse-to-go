@@ -56,12 +56,13 @@ portable_warehouse:
       warehouse: compute_wh
     duck:
       type: duckdb
-      path: ./databases/warehouse_mirror.duckdb
+      # add path relative to the base of dbt project
+      path: ../warehouse_mirror.duckdb
       database: warehouse_mirror
       attach:
-        - path: databases/snowflake_sample_data.duckdb
+        - path: ../snowflake_sample_data.duckdb
           alias: snowflake_sample_data
-        - path: databases/other_source.duckdb
+        - path: ../other_source.duckdb
           alias: other_source
   target: snow
 ```

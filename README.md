@@ -195,12 +195,13 @@ In `dbt/profiles.yml`, point the `duck` target at the container:
 ```yaml
 duck:
   type: duckdb
-  path: ./databases/warehouse_mirror.duckdb
+  # add path relative to the base of dbt project
+  path: ./warehouse_mirror.duckdb
   database: warehouse_mirror
   attach: # the ATTACHed siblings
-    - path: databases/snowflake_sample_data.duckdb
+    - path: ./snowflake_sample_data.duckdb
       alias: snowflake_sample_data # aliased as named in warehouse
-    - path: databases/other_source.duckdb
+    - path: ./other_source.duckdb
       alias: other_source
 ```
 
