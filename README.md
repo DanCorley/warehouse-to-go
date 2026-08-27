@@ -1,11 +1,10 @@
 # Warehouse-to-Go
 
 Create a local **DuckDB** mirror of your data-warehouse sources so your dbt project runs
-against tiny, instant local copies instead of the real warehouse.
+against tiny, instant local copies instead of the real warehouse. Easily paired with [dbt-polyglot](https://pypi.org/project/dbt-polyglot/) to transpile sql dialects on the fly with 0 re-writes.
 
 The tool reads your dbt project's `manifest.json`, connects to the warehouse, extracts each
-source table, and writes a faithful — but small, capped, and fast — copy back onto disk. You then
-point dbt at that local copy and run normally using a tool dbt-polyglot to transpile sql dialects.
+source table, and writes a faithful — but small, capped, and fast — copy back onto disk.
 
 <div align="center">
   <img src="./terminalizer_render.gif"  style="max-width: 75%;" />
