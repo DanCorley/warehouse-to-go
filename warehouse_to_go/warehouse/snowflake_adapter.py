@@ -109,7 +109,7 @@ class SnowflakeAdapter(SourceAdapter):
             if limit is not None:
                 query = f"{query} LIMIT {limit}"
             cursor.execute(query)
-            arrow = cursor.fetch_arrow_all()
+            arrow = cursor.fetch_arrow_all(force_return_table=True)
             return Table(database=database, schema=schema, table=table, rows=arrow)
         finally:
             cursor.close()
