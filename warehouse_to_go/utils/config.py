@@ -20,10 +20,7 @@ class WarehouseConfig:
     threads: int = 4
     client_session_keep_alive: bool = False
     query_tag: Optional[str] = None
-    # Dialect selector — the registry keys adapters off this. Defaults to
-    # Snowflake because this class (currently) only knows how to build
-    # Snowflake configs; Phase 3 makes `type` drive a generic builder.
-    type: str = "snowflake"
+    type: str = None
 
     @classmethod
     def from_dbt_profile(cls, profile_dir: Optional[Path] = None, profile_name: Optional[str] = None, target: Optional[str] = None) -> 'WarehouseConfig':
@@ -53,10 +50,9 @@ class WarehouseConfig:
             for name, config in profiles.items():
                 if isinstance(config, dict) and 'outputs' in config:
                     for output_name, output_config in config['outputs'].items():
-                        if output_config.get('type') == 'snowflake':
-                            profile_name = name
-                            target = target or output_name
-                            break
+                        profile_name = name
+                        target = target or output_name
+                        break
                     if profile_name:
                         break
 
@@ -73,8 +69,23 @@ class WarehouseConfig:
             raise ValueError(f"Target {target} not found in profile {profile_name}")
 
         config = profile['outputs'][target]
-        if config.get('type') not in ['snowflake']:
-            raise ValueError(f"Target {target} in profile {profile_name} is not a supported warehouse connection")
+        # The output's `type` is the adapter selector — it drives the registry
+        adapter_type = config.get("type")
+        if not adapter_type:
+            raise ValueError(
+                f"Target {target} in profile {profile_name} must declare a warehouse 'type'"
+            )
+
+        # Validate the selector against the registry *before* it reaches the
+        # dispatch lookup, so an unregistered adapter fails fast with a clear
+        # message instead of silently resolving to a different (or unknown) one.
+        from warehouse_to_go.warehouse import adapter_registry
+        if adapter_type not in adapter_registry():
+            registered = ", ".join(sorted(adapter_registry())) or "(none)"
+            raise ValueError(
+                f"No adapter registered for warehouse type {adapter_type!r}. "
+                f"Registered adapters: {registered}"
+            )
 
         # Copy all fields from the profile
         warehouse_config = {
@@ -94,7 +105,7 @@ class WarehouseConfig:
                 "Expected one of: password, private_key_path"
             )
 
-        return cls(type="snowflake", **warehouse_config)
+        return cls(type=adapter_type, **warehouse_config)
 
 @dataclass
 class DuckDBConfig:
