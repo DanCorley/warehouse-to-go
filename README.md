@@ -33,12 +33,9 @@ seeded from that capped snapshot of your real sources.
 git clone https://github.com/dancorley/warehouse-to-go.git
 cd warehouse-to-go
 
-# 1. Create and activate a virtual environment (recommended)
-python3 -m venv .venv
+# Create and activate a virtual environment
+uv sync
 source .venv/bin/activate      # On Windows: .venv\Scripts\activate
-
-# 2. Install
-uv pip install -e .
 ```
 
 ## 🧪 Try it
