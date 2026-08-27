@@ -9,7 +9,7 @@ description = "Tool to create local DuckDB representations of data warehouse sou
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "duckdb==1.2.1",
+    "duckdb==1.5.5",
     "pyarrow>=17.0.0",
     "snowflake-connector-python[pandas]==4.2.0",
     "cryptography==44.0.2",
