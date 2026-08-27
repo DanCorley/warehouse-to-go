@@ -18,7 +18,7 @@ class FakeAdapter(SourceAdapter):
     def test_connection(self, config) -> None:
         pass
 
-    def fetch(self, query, columns, limit):
+    def fetch(self, identifier, columns, limit):
         return iter([])
 
     def close(self) -> None:

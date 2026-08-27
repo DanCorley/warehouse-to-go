@@ -16,6 +16,7 @@ from warehouse_to_go.utils.config import Config
 __all__ = [
     "SourceAdapter",
     "Table",
+    "Identifier",
     "CatalogDatabase",
     "CatalogLayout",
     "register",
@@ -28,6 +29,27 @@ __all__ = [
 # --------------------------------------------------------------------------- #
 # Table / typed payload
 # --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class Identifier:
+    """Dialect-agnostic database/schema/table identity for a table to read.
+
+    This is the *structured* identity passed to :meth:`SourceAdapter.fetch`.
+    The adapter turns it into the dialect-specific SQL it can actually
+    execute (``db.schema.table``, ``identifier('db.schema.table')``,
+    fully-qualified names, ...). The CLI never formats this into SQL, so a
+    newly registered adapter always receives an identity it understands instead
+    of a Snowflake-flavoured query string it cannot run.
+    """
+
+    database: str
+    schema: str
+    table: str
+
+    def qualified(self) -> str:
+        """Dot-joined ``database.schema.table`` for logging/labels."""
+        return f"{self.database}.{self.schema}.{self.table}"
+
+
 @dataclass
 class Table:
     """A fetched table, ready to write straight into DuckDB.
@@ -110,10 +132,31 @@ class SourceAdapter(ABC):
         """Verify connectivity without fetching data."""
 
     @abstractmethod
-    def fetch(self, query: str, columns: List[str], limit: Optional[int]) -> Table:
-        """Pull up to `limit` rows from the query as a single pyarrow.Table (one
-        Table per call), with column names, types, and nullability from the
-        source."""
+    def fetch(self, identifier: Identifier, columns: List[str], limit: Optional[int]) -> Table:
+        """Read the table named by `identifier` (structured
+        database/schema/table identity) and return up to `limit` rows as a
+        single pyarrow.Table (one Table per call), with column names, types,
+        and nullability from the source.
+
+        The dialect-specific query is built by :meth:`build_fetch_query` from
+        the structured identity — the CLI never formats SQL itself, so a newly
+        registered adapter can no longer be handed a query it cannot execute.
+        """
+
+    def build_fetch_query(self, identifier: Identifier) -> str:
+        """Dialect-specific query that reads `identifier` (database.schema.table).
+
+        This is the only place a warehouse is allowed to format SQL, so every
+        dialect gets a query it can actually execute. The default produces a
+        plain, case-insensitive ``database.schema.table`` reference, which most
+        dialects (Snowflake, Postgres) can run directly — no quoting, since a
+        quoted name is treated as a cased literal. A newly registered adapter
+        inherits this default and only overrides it when its dialect genuinely
+        needs another form (e.g. BigQuery's ``project.dataset.table``).
+        """
+        return (
+            f"SELECT * FROM {identifier.database}.{identifier.schema}.{identifier.table}"
+        )
 
     @abstractmethod
     def close(self) -> None:

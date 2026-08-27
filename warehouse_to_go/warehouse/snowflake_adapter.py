@@ -7,7 +7,6 @@ stays small; the adapter pulls each capped table as a single pyarrow.Table.
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import snowflake.connector
@@ -16,6 +15,7 @@ from warehouse_to_go.utils.config import Config
 from warehouse_to_go.warehouse import (
     CatalogDatabase,
     CatalogLayout,
+    Identifier,
     SourceAdapter,
     Table,
     register,
@@ -88,36 +88,33 @@ class SnowflakeAdapter(SourceAdapter):
             self.conn = None
 
     # -- protocol --------------------------------------------------------- #
-    def quote_ident(self, reference: str) -> str:
-        # Snowflake unquotes double-quoted identifiers, so each part is safe.
-        return f'"{reference.replace(chr(34), chr(34) * 2)}"'
-
-    def _relation_from_query(self, query: str) -> str:
-        match = re.search(r"FROM\s+identifier\('(.+?)'\)", query, re.IGNORECASE)
-        if not match:
-            raise ValueError("SnowflakeAdapter: query must reference identifier('db.schema.table')")
-        return match.group(1)
-
-    def fetch(self, query, columns, limit):
-        # Snowflake-idiomatic table reference; the adapter derives the
-        # database.schema.table namespace from it. `limit` caps rows per table
-        # (the row_limit), applied as a SQL LIMIT so every table is capped, not
-        # just the total. The whole capped result is pulled as one pyarrow.Table
-        # and returned as a single Table — one load per table, no batching.
-        relation = self._relation_from_query(query)
-        database, schema, table = relation.split(".")
-
+    def _conn(self):
         conn = self.conn
         if conn is None:
             self.connect(self.config)
             conn = self.conn
+        return conn
+
+    def quote_ident(self, reference: str) -> str:
+        # Snowflake unquotes double-quoted identifiers, so each part is safe.
+        return f'"{reference.replace(chr(34), chr(34) * 2)}"'
+
+    def fetch(self, identifier: Identifier, columns, limit):
+        # The query is built by SourceAdapter.build_fetch_query (a plain,
+        # case-insensitive ``db.schema.table`` reference — no quoting, since a
+        # quoted name is a cased literal in Snowflake). We only know how to
+        # connect and pull the capped rows here. `limit` caps rows per table
+        # (the row_limit), applied as a SQL LIMIT so every table is capped, not
+        # just the total. The whole capped result is pulled as one pyarrow.Table
+        # and returned as a single Table — one load per table, no batching.
+        conn = self._conn()
         cursor = conn.cursor()
         try:
             if limit is not None:
-                query = f"{query} LIMIT {limit}"
-            cursor.execute(query)
+                limit = f" LIMIT {limit}"
+            cursor.execute(self.build_fetch_query(identifier) + limit)
             arrow = cursor.fetch_arrow_all(force_return_table=True)
-            return Table(database=database, schema=schema, table=table, rows=arrow)
+            return Table(database=identifier.database, schema=identifier.schema, table=identifier.table, rows=arrow)
         finally:
             cursor.close()
 

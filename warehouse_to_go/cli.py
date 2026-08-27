@@ -13,7 +13,10 @@ from warehouse_to_go.utils.output import (
     print_error,
 )
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
-from warehouse_to_go.warehouse import get_adapter_factory
+from warehouse_to_go.warehouse import (
+    get_adapter_factory,
+    Identifier,
+)
 from warehouse_to_go.sink import setup, load as load_into_duckdb
 
 app = typer.Typer(
@@ -233,17 +236,23 @@ def extract(
             con = setup(layout)
             for db_schema, table_list in plan.items():
                 for table in table_list:
-                    full = f"{db_schema}.{table['identifier']}"
-                    query = f"SELECT * FROM identifier('{full}')"
-                    with print_status(f"Extracting {full}..."):
+                    db, _, schema = db_schema.partition(".")
+                    # Delegate query construction to the adapter: hand it the
+                    # structured database/schema/table identity and let it build
+                    # the dialect-specific SELECT it can actually execute, rather
+                    # than a Snowflake-flavoured query string.
+                    identifier = Identifier(
+                        database=db, schema=schema, table=table["identifier"],
+                    )
+                    with print_status(f"Extracting {identifier.qualified()}..."):
                         fetched = adapter.fetch(
-                            query,
+                            identifier,
                             columns=table.get("columns"),
                             limit=config.extract.row_limit,
                         )
                     n = load_into_duckdb(layout, fetched, connection=con)
                     total += n
-                    print_success(f"✓ {full}: {n:,} rows")
+                    print_success(f"✓ {identifier.qualified()}: {n:,} rows")
             adapter.close()
             source_tables = sum(len(t) for t in plan.values())
             print_success(

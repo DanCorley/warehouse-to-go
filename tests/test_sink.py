@@ -6,7 +6,7 @@ import pyarrow as pa
 
 import duckdb
 
-from warehouse_to_go.warehouse import CatalogDatabase, CatalogLayout, Table
+from warehouse_to_go.warehouse import CatalogDatabase, CatalogLayout, Identifier, Table
 from warehouse_to_go.sink import load
 
 
@@ -24,7 +24,7 @@ def _events_arrow() -> pa.Table:
 class MockAdapter:
     """Returns canned Tables so the sink can be exercised without a warehouse."""
 
-    def fetch(self, query, columns, limit):
+    def fetch(self, identifier, columns, limit):
         return Table(database="analytics", schema="raw", table="events", rows=_events_arrow())
 
 
@@ -61,7 +61,10 @@ def _all_rows(conn, table: str) -> list[tuple]:
 
 def test_sink_writes_typed_table_and_rows(tmp_path: Path) -> None:
     layout = _make_layout(tmp_path)
-    n = load(layout, MockAdapter().fetch("SELECT * FROM src", ["id", "name", "score", "ok"], 100))
+    n = load(
+        layout,
+        MockAdapter().fetch(Identifier("analytics", "raw", "events"), ["id", "name", "score", "ok"], 100),
+    )
 
     assert n == 4
 
