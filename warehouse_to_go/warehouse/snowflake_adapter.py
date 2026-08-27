@@ -33,26 +33,32 @@ class SnowflakeAdapter(SourceAdapter):
 
     # -- connection ------------------------------------------------------- #
     def _conn_params(self) -> dict:
-        wh = self.config.warehouse
+        # Connection + auth are parsed from the raw profile here, behind the
+        # selected factory, so the adapter owns Snowflake-specific fields and
+        # fails fast with a Snowflake-specific message. Other warehouses provide
+        # their own fields in the same `raw` dict (which we ignore).
+        raw = self.config.warehouse.raw or {}
         params = {
-            "account": wh.account,
-            "user": wh.user,
-            "warehouse": wh.warehouse,
-            "role": wh.role,
-            "database": wh.database,
-            "schema": wh.schema,
-            "client_session_keep_alive": wh.client_session_keep_alive,
-            "query_tag": wh.query_tag,
+            "account": raw.get("account"),
+            "user": raw.get("user"),
+            "warehouse": raw.get("warehouse"),
+            "role": raw.get("role"),
+            "database": raw.get("database"),
+            "schema": raw.get("schema"),
+            "client_session_keep_alive": raw.get("client_session_keep_alive", False),
+            "query_tag": raw.get("query_tag"),
         }
-        if wh.private_key_path:
+        if raw.get("private_key_path"):
             from cryptography.hazmat.primitives import serialization
             from cryptography.hazmat.backends import default_backend
 
-            with open(wh.private_key_path, "rb") as key:
+            with open(raw["private_key_path"], "rb") as key:
                 p_key = serialization.load_pem_private_key(
                     key.read(),
                     password=(
-                        wh.private_key_passphrase.encode() if wh.private_key_passphrase else None
+                        raw.get("private_key_passphrase").encode()  # type: ignore[union-attr]
+                        if raw.get("private_key_passphrase")
+                        else None
                     ),
                     backend=default_backend(),
                 )
@@ -61,10 +67,13 @@ class SnowflakeAdapter(SourceAdapter):
                 format=serialization.PrivateFormat.PKCS8,
                 encryption_algorithm=serialization.NoEncryption(),
             )
-        elif wh.password:
-            params["password"] = wh.password
+        elif raw.get("password"):
+            params["password"] = raw["password"]
         else:
-            raise ValueError("No authentication method provided (need password or private_key_path)")
+            raise ValueError(
+                "No Snowflake authentication method provided. "
+                "Expected 'password' or 'private_key_path' in the warehouse profile."
+            )
         return params
 
     def connect(self, config: Config) -> None:
@@ -98,14 +107,12 @@ class SnowflakeAdapter(SourceAdapter):
         relation = self._relation_from_query(query)
         database, schema, table = relation.split(".")
 
-        wh = self.config.warehouse
         conn = self.conn
         if conn is None:
             self.connect(self.config)
             conn = self.conn
         cursor = conn.cursor()
         try:
-            cursor.execute(f"USE WAREHOUSE {wh.warehouse}")
             if limit is not None:
                 query = f"{query} LIMIT {limit}"
             cursor.execute(query)
