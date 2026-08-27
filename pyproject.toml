@@ -19,6 +19,11 @@ dependencies = [
     "rich==14.0.0"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+]
+
 [project.scripts]
 warehouse-to-go = "warehouse_to_go.cli:app"
 
@@ -28,3 +33,11 @@ include = ["warehouse_to_go*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.uv.sources]
+warehouse-to-go = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "warehouse-to-go",
+]

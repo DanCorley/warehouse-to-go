@@ -13,7 +13,7 @@ def print_info(msg="", **kwargs) -> None:
 
 def print_success(msg: str) -> None:
     """Success confirmation."""
-    console.print(f"✅ {msg}", style="green")
+    console.print(f"{msg}", style="green")
 
 
 def print_status(msg: str):
@@ -23,7 +23,7 @@ def print_status(msg: str):
 
 def print_error(msg: str) -> None:
     """Error message in red."""
-    console.print(f"❌ {msg}", style="red")
+    console.print(f"{msg}", style="red")
 
 
 def print_debug(msg: str) -> None:
