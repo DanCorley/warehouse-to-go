@@ -123,10 +123,7 @@ warehouse:
   # Which target within that profile (default: the profile's target).
   target: snow
 
-  # Which adapter to use. Defaults to snowflake (Snowflake is the reference
-  # adapter right now); post/anything else is selected automatically once the
-  # matching adapter is implemented.
-  type: snowflake
+  # The adapter is selected from the chosen dbt profile target's `type`.
 
 duckdb:
   # Directory that holds the primary container .duckdb AND every source

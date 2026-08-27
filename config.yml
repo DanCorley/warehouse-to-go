@@ -9,7 +9,7 @@ warehouse:
   
   # Optional: specify which target to use
   # If not specified, will use the profile's default target
-  target: dev
+  target: snow
 
 duckdb:
   # Path to the DuckDB database file
