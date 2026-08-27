@@ -145,8 +145,16 @@ class WarehouseConfig:
 
 @dataclass
 class DuckDBConfig:
-    """Configuration for DuckDB connection."""
-    database_path: Path
+    """Where the mirrored data is written.
+
+    ``database_path`` is an **optional prefix** for the on-disk sibling
+    databases (where the warehouse data actually lands). If it is ``None`` or
+    empty the mirror is written to the current directory (`./`). With the
+    primary container at ``:memory:`` no container file is written to disk; the
+    siblings are the persistent stores, ATTACHed into the in-memory hub during
+    extraction.
+    """
+    database_path: Optional[Path] = None
 
 @dataclass
 class ExtractConfig:
@@ -172,7 +180,7 @@ class Config:
         return cls(
             warehouse=WarehouseConfig.from_dbt_profile(),
             duckdb=DuckDBConfig(
-                database_path=Path("warehouse_mirror.duckdb"),
+                database_path=Path("."),
             ),
         )
     
@@ -196,6 +204,13 @@ class Config:
             target=target
         )
 
+        # ``duckdb.database_path`` is optional; None/empty means the current
+        # directory. Guard against a missing/None ``duckdb`` section so an empty
+        # config file doesn't blow up on ``None.get``.
+        duckdb_section = config_dict.get("duckdb") or {}
+        database_path = duckdb_section.get("database_path")
+        resolved_db_path = Path(database_path) if database_path else Path(".")
+
         # Ensure manifest_path is a Path object
         manifest_path = config_dict.get('manifest_path', 'target/manifest.json')
         if isinstance(manifest_path, str):
@@ -203,9 +218,7 @@ class Config:
 
         return cls(
             warehouse=wh_config,
-            duckdb=DuckDBConfig(
-                database_path=Path(config_dict.get("duckdb", {}).get("database_path", "warehouse_mirror.duckdb")),
-            ),
+            duckdb=DuckDBConfig(database_path=resolved_db_path),
             extract=ExtractConfig(
                 row_limit=config_dict.get("extract", {}).get("row_limit", 10000),
             ),

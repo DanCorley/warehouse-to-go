@@ -123,7 +123,11 @@ class SnowflakeAdapter(SourceAdapter):
 
     # -- catalog layout --------------------------------------------------- #
     def build_layout(self, config: Config, plan) -> CatalogLayout:
-        db_dir = Path(config.duckdb.database_path).parent
+        # ``config.duckdb.database_path`` is an optional prefix for the on-disk
+        # sibling files (None/empty -> current directory). The primary is an
+        # in-memory hub (":memory:") that ATTACHes those siblings; the data
+        # actually persists in the sibling files on disk.
+        prefix = Path(config.duckdb.database_path or ".")
         databases: dict = {}
         for key, table_list in plan.items():
             database, schema = key.split(".")
@@ -131,16 +135,13 @@ class SnowflakeAdapter(SourceAdapter):
                 database,
                 CatalogDatabase(
                     name=database,
-                    path=db_dir / f"{database}.duckdb",
+                    path=prefix / f"{database}.duckdb",
                     schemas={schema: set()},
                 ),
             )
             for t in table_list:
                 db.schemas.setdefault(schema, set()).add(t["table_name"])
-        return CatalogLayout(
-            primary=config.duckdb.database_path,
-            databases=list(databases.values()),
-        )
+        return CatalogLayout(primary=":memory:", databases=list(databases.values()))
 
 
 def test_connection(config: Config) -> None:

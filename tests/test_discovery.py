@@ -67,7 +67,7 @@ class _TmpAdapter(SourceAdapter):
     def quote_ident(self, reference: str) -> str:
         return f'"{reference}"'
     def build_layout(self, config: Config, plan) -> CatalogLayout:
-        return CatalogLayout(primary=config.duckdb.database_path, databases=[])
+        return CatalogLayout(primary=":memory:", databases=[])
 """
 
     module_path = tmp_path / "tmp_discovery_adapter.py"

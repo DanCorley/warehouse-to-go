@@ -30,7 +30,7 @@ class FakeAdapter(SourceAdapter):
     def build_layout(self, config, plan):
         from warehouse_to_go.warehouse import CatalogLayout
 
-        return CatalogLayout(primary=config.duckdb.database_path, databases=[])
+        return CatalogLayout(primary=":memory:", databases=[])
 
 
 def test_registry_starts_empty() -> None:

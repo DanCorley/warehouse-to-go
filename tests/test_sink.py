@@ -29,7 +29,7 @@ class MockAdapter:
 
 
 def _make_layout(tmp_path: Path) -> CatalogLayout:
-    primary = tmp_path / "warehouse_mirror.duckdb"
+    primary = ":memory:"
     analytics = tmp_path / "analytics.duckdb"
     analytics.parent.mkdir(parents=True, exist_ok=True)
     return CatalogLayout(
@@ -86,7 +86,7 @@ def test_sink_writes_typed_table_and_rows(tmp_path: Path) -> None:
 
 def test_sink_writes_all_rows_in_one_load(tmp_path: Path) -> None:
     """The whole table is pulled as one Arrow Table and written in a single load."""
-    primary = tmp_path / "warehouse_mirror.duckdb"
+    primary = ":memory:"
     db_file = tmp_path / "analytics.duckdb"
     db_file.parent.mkdir(parents=True, exist_ok=True)
     layout = CatalogLayout(
@@ -118,7 +118,7 @@ def test_sink_writes_all_rows_in_one_load(tmp_path: Path) -> None:
 
 
 def test_sink_handles_empty_rows(tmp_path: Path) -> None:
-    primary = tmp_path / "warehouse_mirror.duckdb"
+    primary = ":memory:"
     db_file = tmp_path / "raw.duckdb"
     db_file.parent.mkdir(parents=True, exist_ok=True)
     layout = CatalogLayout(

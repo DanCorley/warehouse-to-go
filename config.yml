@@ -12,8 +12,8 @@ warehouse:
   target: snow
 
 duckdb:
-  # Path to the DuckDB database file
-  database_path: warehouse_mirror.duckdb
+  # Optional path to store DuckDB database files
+  # database_path: databases
 
 extract:
   # Maximum number of rows to extract per table

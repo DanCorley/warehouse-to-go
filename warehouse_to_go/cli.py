@@ -14,7 +14,7 @@ from warehouse_to_go.utils.output import (
 )
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
 from warehouse_to_go.warehouse import get_adapter_factory
-from warehouse_to_go.sink import load as load_into_duckdb
+from warehouse_to_go.sink import setup, load as load_into_duckdb
 
 app = typer.Typer(
     name="warehouse-to-go",
@@ -222,10 +222,15 @@ def extract(
         # Extract data through the adapter + sink
         adapter = get_adapter_factory(config.warehouse.type)(config)
         total = 0
+        con = None
         try:
             adapter.connect(config)
             print_info("\n🚀 Starting extraction...", style="bold cyan")
             layout = adapter.build_layout(config, plan)
+            # Hold one DuckDB connection open for the whole extraction: a single
+            # ATTACH of the sibling files + one schema-creation pass, then write
+            # every fetched table into it before closing.
+            con = setup(layout)
             for db_schema, table_list in plan.items():
                 for table in table_list:
                     full = f"{db_schema}.{table['identifier']}"
@@ -236,7 +241,7 @@ def extract(
                             columns=table.get("columns"),
                             limit=config.extract.row_limit,
                         )
-                    n = load_into_duckdb(layout, fetched)
+                    n = load_into_duckdb(layout, fetched, connection=con)
                     total += n
                     print_success(f"✓ {full}: {n:,} rows")
             adapter.close()
@@ -247,6 +252,8 @@ def extract(
         except Exception as e:
             print_error(f"Error during extraction: {str(e)}")
             adapter.close()
+            if con is not None:
+                con.close()
             raise typer.Exit(1)
     except typer.Exit:
         raise

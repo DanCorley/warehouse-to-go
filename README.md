@@ -126,9 +126,9 @@ warehouse:
   # The adapter is selected from the chosen dbt profile target's `type`.
 
 duckdb:
-  # Directory that holds the primary container .duckdb AND every source
-  # database's sibling .duckdb. This is the root dbt points at.
-  database_path: warehouse_mirror.duckdb
+  # Directory that holds every source database's sibling .duckdb
+  # This should be the root dbt points at.
+  database_path: dbt
 
 extract:
   # Max rows per table. Capped per-table (default 10,000) — speeds local iteration.
@@ -173,8 +173,7 @@ dbt build --project-dir dbt --target duck
 
 This is the part most people ask about, so it deserves its own section.
 
-The `database_path` is the **primary container** `.duckdb`. Alongside it the tool writes one
-**sibling** `.duckdb` per source database. The container `ATTACH`es each sibling (by name) and
+The `database_path` is the folder path each `.duckdb` per source database is written. The container `ATTACH`es each sibling (by name) and
 creates the schemas, so **the database.schema.table paths are identical to the warehouse** — only
 the data lives locally and is row-capped.
 

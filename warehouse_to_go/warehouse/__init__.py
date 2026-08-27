@@ -64,9 +64,18 @@ class CatalogDatabase:
 
 @dataclass
 class CatalogLayout:
-    """Where every fetched table lives in DuckDB."""
+    """Where fetched tables land in DuckDB.
 
-    primary: Path                     # container .duckdb file (config.duckdb.database_path)
+    ``primary`` is the primary container path **or** the string ``":memory:"``.
+    Using ``":memory:"`` means the primary is an in-memory hub: the sink
+    ``ATTACH``es the on-disk sibling databases into it and writes the tables
+    there. Because DuckDB ATTACH shares storage, the writes land in the sibling
+    files on disk — they persist even after the hub connection is closed.
+    Downstream tools (dbt) then reach the data by attaching the sibling files
+    directly rather than connecting to the (now optional) container.
+    """
+
+    primary: Optional[str] = ":memory:"
     databases: List[CatalogDatabase] = field(default_factory=list)
 
     def __post_init__(self) -> None:
