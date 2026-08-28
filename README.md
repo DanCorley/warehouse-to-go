@@ -248,11 +248,16 @@ The sink, CLI, and manifest parser never change — your adapter only produces
 
 ## 🔎 What's tested
 
-The suite (7 tests) locks the machinery — nothing here should silently regress:
+The suite (13 tests) locks the machinery — nothing here should silently regress:
 
-- **Registry** — adapter dispatch by `warehouse.type`, clear error for unknown types
-- **Sink** — Arrow-based writes into multiple sibling databases, empty-table handling, and a
-  guard against writing to an unexpected database
-- **Config** — `from_dbt_profile` reads the warehouse `type` from the profile and validates the
-  selector against the registered adapters
+- **Registry** — the adapter registry starts empty, dispatches by `warehouse.type`, and raises a
+  clear error for unknown types
+- **Discovery** — a new adapter is found *only* via its `pyproject.toml` entry point, and discovery
+  fails loudly if an adapter is neither registered nor discovered on its own
+- **Sink** — Arrow-based writes into multiple sibling databases, single-load row accounting,
+  empty-table handling, a guard against writing to a database absent from the layout, and setup
+  creating sibling databases inside the configured directory prefix
+- **Config** — `from_dbt_profile` reads the warehouse `type` from the profile, strips dbt-only
+  keys, validates the type selector against the registered adapters, and preserves generic
+  provider fields
 
