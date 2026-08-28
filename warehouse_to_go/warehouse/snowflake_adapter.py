@@ -87,6 +87,17 @@ class SnowflakeAdapter(SourceAdapter):
             self.conn.close()
             self.conn = None
 
+    def _qualified_reference(self, identifier: Identifier) -> str:
+        # Snowflake resolves a fully-qualified name *inside* IDENTIFIER(), so
+        # the name is never emitted as bare statement SQL the way raw f-string
+        # interpolation would be. This is the injection-safe direction to
+        # prefer for warehouse names: a manifest name can't escape into the
+        # statement body. Unquoted, so it supports simple/UPPERCASE and
+        # fully-qualified names; names with spaces or mixed-case casing are
+        # not expressible here (that is the tradeoff vs. per-part quoting).
+        qualified = super()._qualified_reference(identifier)
+        return f"IDENTIFIER('{qualified}')"
+
     # -- protocol --------------------------------------------------------- #
     def _conn(self):
         conn = self.conn
@@ -95,18 +106,14 @@ class SnowflakeAdapter(SourceAdapter):
             conn = self.conn
         return conn
 
-    def quote_ident(self, reference: str) -> str:
-        # Snowflake unquotes double-quoted identifiers, so each part is safe.
-        return f'"{reference.replace(chr(34), chr(34) * 2)}"'
-
     def fetch(self, identifier: Identifier, columns, limit):
-        # The query is built by SourceAdapter.build_fetch_query (a plain,
-        # case-insensitive ``db.schema.table`` reference — no quoting, since a
-        # quoted name is a cased literal in Snowflake). We only know how to
-        # connect and pull the capped rows here. `limit` caps rows per table
-        # (the row_limit), applied as a SQL LIMIT so every table is capped, not
-        # just the total. The whole capped result is pulled as one pyarrow.Table
-        # and returned as a single Table — one load per table, no batching.
+        # `build_fetch_query` references the table via
+        # ``IDENTIFIER('db.schema.table')``. Because the name sits inside the
+        # function it is never emitted as bare statement SQL, so it is safe
+        # against identifier injection. The capped result is pulled as one
+        # pyarrow.Table and returned as a single Table — one load per table,
+        # no batching. `limit` caps rows per table (the row_limit), applied as
+        # a SQL LIMIT so every table is capped, not just the total.
         conn = self._conn()
         cursor = conn.cursor()
         try:

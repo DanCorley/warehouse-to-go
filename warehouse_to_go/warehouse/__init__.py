@@ -143,28 +143,43 @@ class SourceAdapter(ABC):
         registered adapter can no longer be handed a query it cannot execute.
         """
 
+    def _qualified_parts(self, identifier: Identifier) -> List[str]:
+        """Dialect-agnostic ``[database, schema?, table]`` with no schema key dropped."""
+        parts = [identifier.database]
+        if identifier.schema is not None:
+            parts.append(identifier.schema)
+        parts.append(identifier.table)
+        return parts
+
+    def _qualified_reference(self, identifier: Identifier) -> str:
+        """Dialect-agnostic ``database.schema.table`` reference.
+
+        Built from the structured parts of :class:`Identifier` rather than a
+        single raw manifest string, so one malformed or untrusted entry can't
+        leak into the statement. It is a plain dotted reference — the Snowflake
+        adapter wraps it in ``IDENTIFIER(...)`` so the name is never bare
+        statement SQL; dialects that want per-part quoting override this.
+        """
+        return ".".join(self._qualified_parts(identifier))
+
     def build_fetch_query(self, identifier: Identifier) -> str:
         """Dialect-specific query that reads `identifier` (database.schema.table).
 
         This is the only place a warehouse is allowed to format SQL, so every
-        dialect gets a query it can actually execute. The default produces a
-        plain, case-insensitive ``database.schema.table`` reference, which most
-        dialects (Snowflake, Postgres) can run directly — no quoting, since a
-        quoted name is treated as a cased literal. A newly registered adapter
-        inherits this default and only overrides it when its dialect genuinely
-        needs another form (e.g. BigQuery's ``project.dataset.table``).
+        dialect gets a query it can actually execute. The default emits a plain
+        ``database.schema.table`` reference built from the structured parts of
+        :class:`Identifier`. The Snowflake adapter overrides
+        :meth:`_qualified_reference` to wrap it in ``IDENTIFIER(...)`` so the
+        name can't be stringified as bare statement SQL. A newly registered
+        adapter inherits this default and only overrides
+        :meth:`_qualified_reference` when its dialect genuinely needs another
+        form (e.g. BigQuery's ``project.dataset.table``).
         """
-        return (
-            f"SELECT * FROM {identifier.database}.{identifier.schema}.{identifier.table}"
-        )
+        return f"SELECT * FROM {self._qualified_reference(identifier)}"
 
     @abstractmethod
     def close(self) -> None:
         """Release the warehouse connection."""
-
-    @abstractmethod
-    def quote_ident(self, reference: str) -> str:
-        """Per-dialect quoting/escaping of an identifier reference."""
 
     @abstractmethod
     def build_layout(self, config: Config, plan: Dict[str, List[Dict]]) -> CatalogLayout:
