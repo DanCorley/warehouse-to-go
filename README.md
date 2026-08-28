@@ -76,7 +76,7 @@ flowchart LR
 |---|---|---|
 | **Manifest parser** | Turns `manifest.json` into a `db.schema → [tables]` extraction plan | Same for every warehouse |
 | **Config** | Picks the warehouse **type**, target, and where to write (`database_path`) | One selection point; no code forks |
-| **SourceAdapter** | `connect` / `test_connection` / `fetch` / `close` / `quote_ident` | All source knowledge (auth, SQL, types, namespace) lives here |
+| **SourceAdapter** | `connect` / `test_connection` / `fetch` / `close` | All source knowledge (auth, SQL, types, namespace) lives here |
 | **Table payload** | `fetch()` yields a `Table` whose `rows` is a `pyarrow.Table` (columns, types, rows from source) | The sink consumes only this; no source-specific type knowledge needed |
 | **DuckDB sink** | Attaches the databases, creates schemas, writes each `Table` in one statement | Never sees Snowflake vs. Postgres vs. BigQuery |
 
@@ -227,7 +227,8 @@ class <Name>Adapter(SourceAdapter):
     def test_connection(self, config): ...
     def fetch(self, query, columns, limit): ...
     def close(self): ...
-    def quote_ident(self, reference): ...
+    # `build_fetch_query()` is the default; override it (or `_qualified_reference()`)
+    # for a warehouse whose identifiers resolve differently (e.g. Snowflake's `IDENTIFIER(...)`).
     def build_layout(self, config, plan): ...
 
 # 2) register the module in pyproject.toml under
