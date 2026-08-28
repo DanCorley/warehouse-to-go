@@ -64,8 +64,8 @@ class _TmpAdapter(SourceAdapter):
     def fetch(self, identifier, columns, limit):
         return Table(database="d", schema="s", table="t")
     def close(self) -> None: ...
-    def quote_ident(self, reference: str) -> str:
-        return f'"{reference}"'
+    def build_fetch_query(self, identifier: str) -> str:
+        return f'"{identifier}"'
     def build_layout(self, config: Config, plan) -> CatalogLayout:
         return CatalogLayout(primary=":memory:", databases=[])
 """

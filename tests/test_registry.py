@@ -24,8 +24,9 @@ class FakeAdapter(SourceAdapter):
     def close(self) -> None:
         pass
 
-    def quote_ident(self, reference) -> str:
-        return f'"{reference}"'
+    def build_fetch_query(self, identifier) -> str:
+        # exercises the identifier-qualification path; override `_qualified_reference` for non-default warehouses
+        return f"SELECT * FROM {identifier.database}.{identifier.schema}.{identifier.table}"
 
     def build_layout(self, config, plan):
         from warehouse_to_go.warehouse import CatalogLayout
