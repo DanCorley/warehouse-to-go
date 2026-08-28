@@ -117,9 +117,8 @@ class SnowflakeAdapter(SourceAdapter):
         conn = self._conn()
         cursor = conn.cursor()
         try:
-            if limit is not None:
-                limit = f" LIMIT {limit}"
-            cursor.execute(self.build_fetch_query(identifier) + limit)
+            limit_clause = f" LIMIT {limit}" if limit is not None else ""
+            cursor.execute(self.build_fetch_query(identifier) + limit_clause)
             arrow = cursor.fetch_arrow_all(force_return_table=True)
             return Table(database=identifier.database, schema=identifier.schema, table=identifier.table, rows=arrow)
         finally:

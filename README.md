@@ -166,8 +166,8 @@ dbt build --project-dir dbt --target duck
 
 - `analyze` groups sources by their `database.schema` and prints the table count per group —
   this is exactly the grouping each source namespace maps into the local mirror.
-- `extract` prints per-table row counts as it goes, then a final **Extraction Summary** listing
-  every table and its row count. `--source NAME` narrows to a single source.
+- `extract` prints each table's row count as it is written, followed by an aggregate table and row
+  count. `--source NAME` narrows extraction to a single source.
 
 ## 💾 Storage model — how dbt consumes the mirror
 
@@ -225,7 +225,7 @@ class <Name>Adapter(SourceAdapter):
     type_name = "<type>"
     def connect(self, config): ...
     def test_connection(self, config): ...
-    def fetch(self, query, columns, limit): ...
+    def fetch(self, identifier, columns, limit): ...
     def close(self): ...
     # `build_fetch_query()` is the default; override it (or `_qualified_reference()`)
     # for a warehouse whose identifiers resolve differently (e.g. Snowflake's `IDENTIFIER(...)`).
