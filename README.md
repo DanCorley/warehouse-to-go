@@ -186,14 +186,14 @@ dbt/                             ← the `database_path` directory (default: cur
 └── other_source.duckdb         ← sibling, when the source has its own database
 ```
 
-In `dbt/profiles.yml`, point the `duck` target at the `database_path` directory and attach the
-sibling `.duckdb` files (there is no primary container file):
+In `dbt/profiles.yml`, point the `duck` target at a separate writable DuckDB file and attach the
+sibling `.duckdb` files from `database_path`:
 
 ```yaml
 duck:
   type: duckdb
-  # add path relative to the base of dbt project — this is the directory holding the siblings
-  path: ./dbt
+  # Primary file used by dbt for its own models; source databases remain siblings.
+  path: ./dbt/warehouse_mirror.duckdb
   database: warehouse_mirror
   attach: # the ATTACHed siblings
     - path: ./snowflake_sample_data.duckdb

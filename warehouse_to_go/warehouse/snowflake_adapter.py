@@ -76,8 +76,9 @@ class SnowflakeAdapter(SourceAdapter):
             )
         return params
 
-    def connect(self, config: Config) -> None:
+    def connect(self, config: Config):
         self.conn = snowflake.connector.connect(**self._conn_params())
+        return self.conn
 
     def test_connection(self, config: Config) -> None:
         snowflake.connector.connect(**self._conn_params()).close()

@@ -34,6 +34,15 @@ class FakeAdapter(SourceAdapter):
         return CatalogLayout(primary=":memory:", databases=[])
 
 
+@pytest.fixture(autouse=True)
+def _restore_registry():
+    original = adapter_registry()
+    yield
+    clear_registry()
+    for name, factory in original.items():
+        register(name)(factory)
+
+
 def test_registry_starts_empty() -> None:
     clear_registry()
     assert adapter_registry() == {}

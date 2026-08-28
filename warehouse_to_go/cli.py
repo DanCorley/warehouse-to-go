@@ -129,20 +129,24 @@ def debug():
         print_status("Testing DuckDB sink setup...")
         prefix = Path(config.duckdb.database_path)
         prefix.mkdir(parents=True, exist_ok=True)
-        sibling = prefix / "mock.duckdb"
-        mock_layout = CatalogLayout(
-            primary=":memory:",
-            databases=[
-                CatalogDatabase(
-                    name="mock", path=sibling, schemas={"demo": {"events"}}
-                ),
-            ],
-        )
-        con = setup(mock_layout)
-        con.execute("CREATE TABLE mock.demo.events AS SELECT 1 AS id, 'x' AS name")
-        con.close()
-        assert sibling.exists(), "expected a sibling database file in the configured prefix"
-        sibling.unlink()
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory(dir=prefix) as temp_dir:
+            sibling = Path(temp_dir) / "mock.duckdb"
+            mock_layout = CatalogLayout(
+                primary=":memory:",
+                databases=[
+                    CatalogDatabase(
+                        name="mock", path=sibling, schemas={"demo": {"events"}}
+                    ),
+                ],
+            )
+            con = setup(mock_layout)
+            try:
+                con.execute("CREATE TABLE mock.demo.events AS SELECT 1 AS id, 'x' AS name")
+                assert sibling.exists(), "expected a sibling database file in the configured prefix"
+            finally:
+                con.close()
         print_success("DuckDB sink setup successful!")
 
         print_success("Configuration initialized successfully!")

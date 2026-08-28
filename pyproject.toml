@@ -27,8 +27,8 @@ dev = [
 [project.scripts]
 warehouse-to-go = "warehouse_to_go.cli:app"
 
-# Adapter discovery. package is discovered here via an
-# entry-point group (PEP 682). Add a new line module path per dialect
+# Adapter discovery. Each adapter module is discovered through this
+# entry-point group; add one module path per dialect.
 [project.entry-points."warehouse_to_go.adapters"]
 snowflake = "warehouse_to_go.warehouse.snowflake_adapter"
 
