@@ -166,8 +166,8 @@ dbt build --project-dir dbt --target duck
 
 - `analyze` groups sources by their `database.schema` and prints the table count per group —
   this is exactly the grouping each source namespace maps into the local mirror.
-- `extract` prints per-table row counts as it goes, then a final **Extraction Summary** listing
-  every table and its row count. `--source NAME` narrows to a single source.
+- `extract` prints each table's row count as it is written, followed by an aggregate table and row
+  count. `--source NAME` narrows extraction to a single source.
 
 ## 💾 Storage model — how dbt consumes the mirror
 
@@ -225,7 +225,7 @@ class <Name>Adapter(SourceAdapter):
     type_name = "<type>"
     def connect(self, config): ...
     def test_connection(self, config): ...
-    def fetch(self, query, columns, limit): ...
+    def fetch(self, identifier, columns, limit): ...
     def close(self): ...
     def quote_ident(self, reference): ...
     def build_layout(self, config, plan): ...
@@ -248,11 +248,10 @@ The sink, CLI, and manifest parser never change — your adapter only produces
 
 ## 🔎 What's tested
 
-The suite (7 tests) locks the machinery — nothing here should silently regress:
+The suite (9 tests) covers:
 
 - **Registry** — adapter dispatch by `warehouse.type`, clear error for unknown types
-- **Sink** — Arrow-based writes into multiple sibling databases, empty-table handling, and a
-  guard against writing to an unexpected database
-- **Config** — `from_dbt_profile` reads the warehouse `type` from the profile and validates the
-  selector against the registered adapters
+- **Discovery** — entry-point loading and enforcement of adapter self-registration
+- **Sink** — Arrow-based writes into sibling databases, empty-table handling, and a guard against
+  writing to an unexpected database
 

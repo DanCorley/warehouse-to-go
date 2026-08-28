@@ -148,11 +148,10 @@ class SourceAdapter(ABC):
 
         This is the only place a warehouse is allowed to format SQL, so every
         dialect gets a query it can actually execute. The default produces a
-        plain, case-insensitive ``database.schema.table`` reference, which most
-        dialects (Snowflake, Postgres) can run directly — no quoting, since a
-        quoted name is treated as a cased literal. A newly registered adapter
-        inherits this default and only overrides it when its dialect genuinely
-        needs another form (e.g. BigQuery's ``project.dataset.table``).
+        plain ``database.schema.table`` reference. Adapters must override this when
+        their dialect uses a different namespace shape or identifier syntax (for
+        example, PostgreSQL connections cannot query another database via a
+        three-part reference, while BigQuery uses ``project.dataset.table``).
         """
         return (
             f"SELECT * FROM {identifier.database}.{identifier.schema}.{identifier.table}"
