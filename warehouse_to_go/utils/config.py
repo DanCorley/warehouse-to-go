@@ -109,25 +109,6 @@ class WarehouseConfig:
                 f"Registered adapters: {registered}"
             )
 
-        config = profile['outputs'][target]
-        # The output's `type` is the adapter selector — it drives the registry
-        adapter_type = config.get("type")
-        if not adapter_type:
-            raise ValueError(
-                f"Target {target} in profile {profile_name} must declare a warehouse 'type'"
-            )
-
-        # Validate the selector against the registry *before* it reaches the
-        # dispatch lookup, so an unregistered adapter fails fast with a clear
-        # message instead of silently resolving to a different (or unknown) one.
-        from warehouse_to_go.warehouse import adapter_registry
-        if adapter_type not in adapter_registry():
-            registered = ", ".join(sorted(adapter_registry())) or "(none)"
-            raise ValueError(
-                f"No adapter registered for warehouse type {adapter_type!r}. "
-                f"Registered adapters: {registered}"
-            )
-
         # Every other field in the output is provider-specific. Keep it verbatim
         # in `raw` (excluding dbt-only keys) so each adapter — behind its
         # factory — parses the fields it recognises and ignores the rest. No
