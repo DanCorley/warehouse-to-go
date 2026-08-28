@@ -89,10 +89,11 @@ the source. The sink writes each table with a single `CREATE OR REPLACE TABLE ..
 
 1. **DuckDB is a pure sink.** The sink knows only a `Table` (a `pyarrow.Table`) + a `CatalogLayout`;
    it never knows which warehouse the data came from. Add an adapter → no sink changes.
-2. **One database per namespace on disk.** The configured `database_path` is the **primary
-   container** `.duckdb`. Every source namespace becomes its own **sibling** `.duckdb` in the
-   container's directory. The sink `ATTACH`es each sibling and writes its schemas into the
-   container. **The number of databases is not fixed** — it's adapter-declared and user-configurable.
+2. **One database per namespace on disk.** The configured `database_path` is a **directory** that
+   holds a **sibling** `.duckdb` per source namespace (defaulting to the current directory). The
+   **primary is always the in-memory hub** `:memory:` — you never point it at a `.duckdb` file. The
+   sink `ATTACH`es each sibling and creates the schemas there. **The number of databases is not
+   fixed** — it's adapter-declared and user-configurable.
 3. **`row_limit` caps each table independently** (default `10000`). It is *not* the total row budget —
    each table gets up to `row_limit` rows.
 4. **The CLI is generic.** "Select the adapter from `warehouse.type`; run." — the same command works
@@ -173,24 +174,26 @@ dbt build --project-dir dbt --target duck
 
 This is the part most people ask about, so it deserves its own section.
 
-The `database_path` is the folder path each `.duckdb` per source database is written. The container `ATTACH`es each sibling (by name) and
-creates the schemas, so **the database.schema.table paths are identical to the warehouse** — only
-the data lives locally and is row-capped.
+The `database_path` is the folder that holds each `.duckdb` per source database. The sink opens an
+in-memory primary and `ATTACH`es each sibling (by name) and creates the schemas, so **the
+`database.schema.table` paths are identical to the warehouse** — only the data lives locally and is
+row-capped.
 
 ```
-warehouse_mirror.duckdb          ← primary container (what dbt connects to)
+dbt/                             ← the `database_path` directory (default: current directory)
 ├── snowflake_sample_data.duckdb ← sibling (source database)
 │     └── tpch_sf1              ← schema (tables inside)
 └── other_source.duckdb         ← sibling, when the source has its own database
 ```
 
-In `dbt/profiles.yml`, point the `duck` target at the container:
+In `dbt/profiles.yml`, point the `duck` target at the `database_path` directory and attach the
+sibling `.duckdb` files (there is no primary container file):
 
 ```yaml
 duck:
   type: duckdb
-  # add path relative to the base of dbt project
-  path: ./warehouse_mirror.duckdb
+  # add path relative to the base of dbt project — this is the directory holding the siblings
+  path: ./dbt
   database: warehouse_mirror
   attach: # the ATTACHed siblings
     - path: ./snowflake_sample_data.duckdb

@@ -56,8 +56,8 @@ portable_warehouse:
       warehouse: compute_wh
     duck:
       type: duckdb
-      # add path relative to the base of dbt project
-      path: ../warehouse_mirror.duckdb
+      # directory that holds the sibling .duckdb files per source database (no primary container file)
+      path: ../dbt
       database: warehouse_mirror
       attach:
         - path: ../snowflake_sample_data.duckdb
