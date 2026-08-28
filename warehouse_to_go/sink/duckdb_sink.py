@@ -11,6 +11,8 @@ directly, so there is nothing to drop on failure).
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from typing import Iterable, Optional
 
 import duckdb
@@ -63,10 +65,10 @@ def setup(layout: CatalogLayout, connection: Optional[duckdb.DuckPyConnection] =
     With ``primary == ':memory:'`` no container file is created; the siblings on
     disk are the persistent stores.
     """
-    primary_path = str(layout.primary)
-    if primary_path != ":memory:":
-        layout.primary.parent.mkdir(parents=True, exist_ok=True)
-    con = connection if connection is not None else duckdb.connect(primary_path)
+    primary_path = Path(layout.primary)
+    if layout.primary != ":memory:":
+        primary_path.parent.mkdir(parents=True, exist_ok=True)
+    con = connection if connection is not None else duckdb.connect(str(primary_path))
     try:
         # The sibling files are real on-disk databases that get ATTACHed, so
         # their parent directories must exist *before* we open them. The
