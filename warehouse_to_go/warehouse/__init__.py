@@ -219,7 +219,7 @@ def clear_registry() -> None:  # pragma: no cover - test helper
 
 
 # --------------------------------------------------------------------------- #
-# Adapter discovery (PEP 682 entry points)
+# Adapter discovery (Python package entry points)
 # --------------------------------------------------------------------------- #
 # Discovery replaces the old hard-coded `__ALL_ADAPTERS__` list. There is no
 # central module list to edit when adding a dialect: a new adapter module only
