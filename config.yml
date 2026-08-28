@@ -5,19 +5,16 @@
 warehouse:
   # Optional: specify which dbt profile to use
   # If not specified, will use the first warehouse profile found
-  # profile_name: my_profile
+  profile_name: portable_warehouse
   
   # Optional: specify which target to use
   # If not specified, will use the profile's default target
-  target: dev
+  target: snow
 
 duckdb:
-  # Path to the DuckDB database file
-  database_path: warehouse_mirror.duckdb
+  # Optional path to store DuckDB database files
+  # database_path: databases
 
 extract:
   # Maximum number of rows to extract per table
   row_limit: 10000
-  
-  # Number of rows to fetch at once
-  batch_size: 10000

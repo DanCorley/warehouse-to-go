@@ -13,12 +13,18 @@ from warehouse_to_go.utils.output import (
     print_error,
 )
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
-from warehouse_to_go.extractor.snowflake_extractor import SnowflakeExtractor, test_connection
+from warehouse_to_go.warehouse import (
+    CatalogDatabase,
+    CatalogLayout,
+    get_adapter_factory,
+    Identifier,
+)
+from warehouse_to_go.sink import setup, load as load_into_duckdb
 
 app = typer.Typer(
     name="warehouse-to-go",
     help="Tool to create local DuckDB representations of data warehouse sources from dbt projects.",
-    add_completion=False,
+    add_completion=True,
     rich_markup_mode=None,
 )
 
@@ -109,20 +115,45 @@ def debug():
             app.target,
             app.manifest_path,
         )
-            
-        # Test Snowflake connection
-        print_status("Testing Snowflake connection...")
-        test_connection(config)
-        print_success("Snowflake connection successful!")
 
-        # Test DuckDB creation
-        print_status("Testing DuckDB database creation...")
-        conn = duckdb.connect(str(config.duckdb.database_path))
-        conn.close()
-        print_success("DuckDB database creation successful!")
+        # Test the selected warehouse connection
+        print_status("Testing warehouse connection...")
+        adapter = get_adapter_factory(config.warehouse.type)(config)
+        try:
+            adapter.test_connection(config)
+            print_success(f"{config.warehouse.type} connection successful!")
+        finally:
+            adapter.close()
+
+        # Test the DuckDB sink setup path against the configured prefix.
+        print_status("Testing DuckDB sink setup...")
+        prefix = Path(config.duckdb.database_path)
+        prefix.mkdir(parents=True, exist_ok=True)
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory(dir=prefix) as temp_dir:
+            sibling = Path(temp_dir) / "mock.duckdb"
+            mock_layout = CatalogLayout(
+                primary=":memory:",
+                databases=[
+                    CatalogDatabase(
+                        name="mock", path=sibling, schemas={"demo": {"events"}}
+                    ),
+                ],
+            )
+            con = setup(mock_layout)
+            try:
+                con.execute("CREATE TABLE mock.demo.events AS SELECT 1 AS id, 'x' AS name")
+                assert sibling.exists(), "expected a sibling database file in the configured prefix"
+            finally:
+                con.close()
+        print_success("DuckDB sink setup successful!")
 
         print_success("Configuration initialized successfully!")
 
+    except KeyError as e:
+        print_error(f"No adapter available for warehouse type: {e}")
+        raise typer.Exit(1)
     except Exception as e:
         print_error(f"Error initializing configuration: {str(e)}")
         raise typer.Exit(1)
@@ -175,7 +206,7 @@ def extract(
         help="Show what would be extracted without actually extracting",
     ),
 ):
-    """Extract data from Snowflake to DuckDB."""
+    """Extract data from the configured warehouse into DuckDB."""
     try:
         # Load config
         config = get_config(
@@ -207,16 +238,58 @@ def extract(
                 for table in tables:
                     print_info(
                         f"  • {table['table_name']} "
-                        f"(max {config.extract.row_limit:,} rows, "
-                        f"{config.extract.batch_size:,} per batch)",
+                        f"(max {config.extract.row_limit:,} rows)",
                         style="dim",
                     )
             return
 
-        # Extract data
-        print_info("\n🚀 Starting extraction...", style="bold cyan")
-        with SnowflakeExtractor(config) as extractor:
-            extractor.extract_tables(plan)
+        # Extract data through the adapter + sink
+        adapter = get_adapter_factory(config.warehouse.type)(config)
+        total = 0
+        con = None
+        try:
+            adapter.connect(config)
+            print_info("\n🚀 Starting extraction...", style="bold cyan")
+            layout = adapter.build_layout(config, plan)
+            # Hold one DuckDB connection open for the whole extraction: a single
+            # ATTACH of the sibling files + one schema-creation pass, then write
+            # every fetched table into it before closing.
+            con = setup(layout)
+            for db_schema, table_list in plan.items():
+                for table in table_list:
+                    db, _, schema = db_schema.partition(".")
+                    # Delegate query construction to the adapter: hand it the
+                    # structured database/schema/table identity and let it build
+                    # the dialect-specific SELECT it can actually execute, rather
+                    # than a Snowflake-flavoured query string.
+                    identifier = Identifier(
+                        database=db, schema=schema, table=table["identifier"],
+                    )
+                    with print_status(f"Extracting {identifier.qualified()}..."):
+                        fetched = adapter.fetch(
+                            identifier,
+                            columns=table.get("columns"),
+                            limit=config.extract.row_limit,
+                        )
+                    n = load_into_duckdb(layout, fetched, connection=con)
+                    total += n
+                    print_success(f"✓ {identifier.qualified()}: {n:,} rows")
+            source_tables = sum(len(t) for t in plan.values())
+            print_success(
+                f"\nExtracted {source_tables:,} tables, {total:,} rows"
+            )
+        except Exception as e:
+            print_error(f"Error during extraction: {str(e)}")
+            raise typer.Exit(1)
+        finally:
+            if con is not None:
+                con.close()
+            adapter.close()
+    except typer.Exit:
+        raise
+    except KeyError as e:
+        print_error(f"No adapter available for warehouse type: {e}")
+        raise typer.Exit(1)
     except Exception as e:
         print_error(f"Error during extraction: {str(e)}")
         raise typer.Exit(1)

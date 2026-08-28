@@ -56,7 +56,14 @@ portable_warehouse:
       warehouse: compute_wh
     duck:
       type: duckdb
-      path: warehouse_mirror.duckdb
+      # Primary file for dbt models; source database files are attached below.
+      path: ../dbt/warehouse_mirror.duckdb
+      database: warehouse_mirror
+      attach:
+        - path: ../snowflake_sample_data.duckdb
+          alias: snowflake_sample_data
+        - path: ../other_source.duckdb
+          alias: other_source
   target: snow
 ```
 
