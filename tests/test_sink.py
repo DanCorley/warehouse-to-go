@@ -162,3 +162,46 @@ def test_sink_reports_target_not_in_layout(tmp_path: Path) -> None:
         assert "No database named 'raw'" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("expected KeyError for unknown database")
+
+
+def test_sink_setup_exercises_directory_prefix(tmp_path: Path) -> None:
+    """Regression for the `debug` command.
+
+    ``config.duckdb.database_path`` is a *directory prefix* (default ``.``), not a
+    database file. The old `debug` test did ``duckdb.connect(str(database_path))``
+    which raised ``Is a directory``. The debug command now exercises the real sink
+    setup path: a ``":memory:"`` primary ATTACHes a sibling ``.duckdb`` that lives
+    *inside* the configured prefix directory. This test proves that path.
+    """
+    from warehouse_to_go.sink import setup
+
+    prefix = tmp_path / "configured_db"
+    prefix.mkdir(parents=True, exist_ok=True)  # mimics the configured directory prefix
+
+    analytics = prefix / "analytics.duckdb"
+    layout = CatalogLayout(
+        primary=":memory:",
+        databases=[
+            CatalogDatabase(name="analytics", path=analytics, schemas={"raw": {"events"}}),
+        ],
+    )
+
+    # setup() must create the sibling file inside the configured prefix directory,
+    # never fail with "Is a directory", and persist data there.
+    rows = pa.table({"id": pa.array([1, 2], type=pa.int64()), "v": pa.array(["a", "b"])})
+    con = setup(layout)
+    try:
+        load(layout, Table(database="analytics", schema="raw", table="events", rows=rows), connection=con)
+    finally:
+        con.close()
+
+    # The sibling database was created inside the configured prefix directory.
+    assert analytics.exists()
+
+    # A fresh connection reaching the sibling directly reads the persisted data.
+    conn = duckdb.connect(str(analytics))
+    try:
+        count = conn.execute("SELECT COUNT(*) FROM raw.events").fetchone()[0]
+        assert count == 2
+    finally:
+        conn.close()

@@ -14,6 +14,8 @@ from warehouse_to_go.utils.output import (
 )
 from warehouse_to_go.extractor.manifest_parser import ManifestParser
 from warehouse_to_go.warehouse import (
+    CatalogDatabase,
+    CatalogLayout,
     get_adapter_factory,
     Identifier,
 )
@@ -123,10 +125,25 @@ def debug():
         finally:
             adapter.close()
 
-        # Test DuckDB database creation
-        print_status("Testing DuckDB database creation...")
-        duckdb.connect(str(config.duckdb.database_path)).close()
-        print_success("DuckDB database creation successful!")
+        # Test the DuckDB sink setup path against the configured prefix.
+        print_status("Testing DuckDB sink setup...")
+        prefix = Path(config.duckdb.database_path)
+        prefix.mkdir(parents=True, exist_ok=True)
+        sibling = prefix / "mock.duckdb"
+        mock_layout = CatalogLayout(
+            primary=":memory:",
+            databases=[
+                CatalogDatabase(
+                    name="mock", path=sibling, schemas={"demo": {"events"}}
+                ),
+            ],
+        )
+        con = setup(mock_layout)
+        con.execute("CREATE TABLE mock.demo.events AS SELECT 1 AS id, 'x' AS name")
+        con.close()
+        assert sibling.exists(), "expected a sibling database file in the configured prefix"
+        sibling.unlink()
+        print_success("DuckDB sink setup successful!")
 
         print_success("Configuration initialized successfully!")
 
@@ -253,17 +270,17 @@ def extract(
                     n = load_into_duckdb(layout, fetched, connection=con)
                     total += n
                     print_success(f"✓ {identifier.qualified()}: {n:,} rows")
-            adapter.close()
             source_tables = sum(len(t) for t in plan.values())
             print_success(
                 f"\nExtracted {source_tables:,} tables, {total:,} rows"
             )
         except Exception as e:
             print_error(f"Error during extraction: {str(e)}")
-            adapter.close()
+            raise typer.Exit(1)
+        finally:
             if con is not None:
                 con.close()
-            raise typer.Exit(1)
+            adapter.close()
     except typer.Exit:
         raise
     except KeyError as e:
