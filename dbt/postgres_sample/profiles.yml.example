@@ -1,0 +1,25 @@
+# dbt profiles for the Neon sample schemas.
+#
+# Two outputs in ONE profile:
+#   postgres -> the REAL Postgres (read source). Run `docker compose up -d` first.
+#   duck     -> the LOCAL DuckDB mirror (dbt target). The single `postgres.duckdb`
+#              sibling contains all six sample schemas.
+#
+# `postgres_sample.target` is set to `duck`, so `dbt build` reads the mirror.
+
+portable_warehouse:
+  target: postgres
+  outputs:
+    postgres:
+      type: postgres
+      host: 127.0.0.1
+      port: 5433
+      user: warehouse_to_go
+      password: postgres_demo
+      dbname: postgres
+      schema: public
+
+    duck:
+      type: duckdb
+      path: ../../postgres.duckdb
+      database: postgres

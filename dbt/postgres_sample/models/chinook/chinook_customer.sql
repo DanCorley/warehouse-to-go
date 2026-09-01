@@ -1,0 +1,15 @@
+select
+    "CustomerId"
+    , "FirstName"
+    , "LastName"
+    , "Company"
+    , "Address"
+    , "City"
+    , "State"
+    , "Country"
+    , "PostalCode"
+    , "Phone"
+    , "Fax"
+    , "Email"
+    , "SupportRepId"
+from {{ source('chinook', 'Customer') }}

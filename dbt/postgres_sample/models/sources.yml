@@ -1,0 +1,78 @@
+# Sources map dbt's `source('name', 'table')` calls onto the Neon sample
+# schemas loaded by docker/postgres/01-load-sample-dbs.sh.
+#
+# All sources live inside the connected `postgres` database, each in its
+# own schema.  The adapter reads via ``__pg."schema"."table"`` and the
+# sink writes to ``postgres.<schema>.<table>`` in the DuckDB mirror.
+version: 2
+
+sources:
+  # ── periodic_table ──────────────────────────────────────────────────
+  - name: periodic_table
+    database: postgres
+    schema: periodic_table
+    tables:
+      - name: periodic_table
+        description: Elements of the periodic table.
+
+  # ── world_happiness ─────────────────────────────────────────────────
+  - name: world_happiness
+    database: postgres
+    schema: world_happiness
+    tables:
+      - name: '2019'
+        description: World happiness index for 2019.
+
+  # ── titanic ─────────────────────────────────────────────────────────
+  - name: titanic
+    database: postgres
+    schema: titanic
+    tables:
+      - name: passenger
+        description: Titanic passenger data.
+
+  # ── netflix ─────────────────────────────────────────────────────────
+  - name: netflix
+    database: postgres
+    schema: netflix
+    tables:
+      - name: netflix_shows
+        description: Movies and TV shows on Netflix.
+
+  # ── dvdrental ───────────────────────────────────────────────────────
+  - name: dvdrental
+    database: postgres
+    schema: dvdrental
+    tables:
+      - name: actor
+      - name: address
+      - name: category
+      - name: city
+      - name: country
+      - name: customer
+      - name: film
+      - name: film_actor
+      - name: film_category
+      - name: inventory
+      - name: language
+      - name: payment
+      - name: rental
+      - name: staff
+      - name: store
+
+  # ── chinook ─────────────────────────────────────────────────────────
+  - name: chinook
+    database: postgres
+    schema: chinook
+    tables:
+      - name: Album
+      - name: Artist
+      - name: Customer
+      - name: Employee
+      - name: Genre
+      - name: Invoice
+      - name: InvoiceLine
+      - name: MediaType
+      - name: Playlist
+      - name: PlaylistTrack
+      - name: Track

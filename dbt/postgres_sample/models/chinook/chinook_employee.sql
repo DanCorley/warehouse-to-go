@@ -1,0 +1,17 @@
+select
+    "EmployeeId"
+    , "LastName"
+    , "FirstName"
+    , "Title"
+    , "ReportsTo"
+    , "BirthDate"
+    , "HireDate"
+    , "Address"
+    , "City"
+    , "State"
+    , "Country"
+    , "PostalCode"
+    , "Phone"
+    , "Fax"
+    , "Email"
+from {{ source('chinook', 'Employee') }}
