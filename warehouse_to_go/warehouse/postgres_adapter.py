@@ -24,6 +24,7 @@ Namespaces: each source **database** becomes one sibling ``.duckdb`` under
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import quote
 
 import duckdb
 
@@ -48,6 +49,22 @@ class PostgresAdapter(SourceAdapter):
         self.conn = None
 
     # -- connection ------------------------------------------------------- #
+    def _build_connstr(self) -> str:
+        """Build a percent-encoded PostgreSQL URI safe for SQL string literals."""
+        raw = self._conn_params()
+        user = quote(raw["user"], safe="")
+        password = quote(raw["password"], safe="")
+        host = quote(raw["host"], safe="")
+        dbname = quote(raw["dbname"], safe="")
+        port = int(raw["port"])
+        sslmode = raw["sslmode"]
+        connstr = (
+            f"postgresql://{user}:{password}@{host}:{port}"
+            f"/{dbname}?sslmode={sslmode}"
+        )
+        # Escape single quotes so the literal cannot break out of ATTACH '...'
+        return connstr.replace("'", "''")
+
     def _conn_params(self) -> dict:
         # Connection + auth are parsed from the raw profile here, behind the
         # selected factory, so the adapter owns Postgres-specific fields and
@@ -77,25 +94,18 @@ class PostgresAdapter(SourceAdapter):
         # Attach Postgres as a hidden database. The alias ``__pg`` is internal;
         # tables are addressed as ``__pg."schema"."table"``. A dedicated alias
         # (rather than the real namespace name) keeps the on-disk siblings clean.
-        raw = self._conn_params()
-        connstr = (
-            f"postgresql://{raw['user']}:{raw['password']}@{raw['host']}:{raw['port']}"
-            f"/{raw['dbname']}"
-            f"?sslmode={raw['sslmode']}"
-        )
         self.conn = duckdb.connect()
-        self.conn.execute(f"ATTACH '{connstr}' AS __pg (TYPE postgres);")
+        self.conn.execute(
+            f"ATTACH '{self._build_connstr()}' AS __pg (TYPE postgres);"
+        )
         return self.conn
 
     def test_connection(self, config: Config) -> None:
-        raw = self._conn_params()
-        connstr = (
-            f"postgresql://{raw['user']}:{raw['password']}@{raw['host']}:{raw['port']}"
-            f"/{raw['dbname']}?sslmode={raw['sslmode']}"
-        )
         conn = duckdb.connect()
         try:
-            conn.execute(f"ATTACH '{connstr}' AS __pg (TYPE postgres);")
+            conn.execute(
+                f"ATTACH '{self._build_connstr()}' AS __pg (TYPE postgres);"
+            )
             conn.execute("SELECT 1;")
         finally:
             conn.close()
@@ -111,13 +121,10 @@ class PostgresAdapter(SourceAdapter):
         # here because `fetch()` returns a pyarrow.Table that's detached from the
         # DuckDB handle; nothing downstream holds the connection open. The base
         # `connect()` warms `self.conn` for parity with `test_connection()`.
-        raw = self._conn_params()
-        connstr = (
-            f"postgresql://{raw['user']}:{raw['password']}@{raw['host']}:{raw['port']}"
-            f"/{raw['dbname']}?sslmode={raw['sslmode']}"
-        )
         conn = duckdb.connect()
-        conn.execute(f"ATTACH '{connstr}' AS __pg (TYPE postgres);")
+        conn.execute(
+            f"ATTACH '{self._build_connstr()}' AS __pg (TYPE postgres);"
+        )
         return conn
 
     # -- protocol --------------------------------------------------------- #
