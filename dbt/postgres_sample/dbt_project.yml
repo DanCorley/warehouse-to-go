@@ -1,0 +1,29 @@
+# dbt project mirroring the six Neon sample databases in docker/postgres.
+#
+# dbt-polyglot transpiles Postgres SQL on the fly (0 rewrites). `transpile_from:
+# postgres` + `transpile_to: duckdb` (for the `duck` target) means every model
+# below can use native Postgres SQL and still build into local DuckDB tables.
+name: 'postgres_sample'
+version: '1.0.0'
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'portable_warehouse'
+
+# Where dbt looks for different types of files.
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  # dbt-polyglot: transpile Postgres SQL -> DuckDB for the local `duck` target.
+  +transpile_from: postgresql
+  +transpile_to: "{{ 'duckdb' if target.name == 'duck' else 'postgresql' }}"
+  postgres_sample:
+    +materialized: table
