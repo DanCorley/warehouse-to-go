@@ -21,7 +21,7 @@
 
 set -euo pipefail
 
-REPO_BASE="https://raw.githubusercontent.com/neondatabase/postgres-sample-dbs/main"
+REPO_BASE="https://raw.githubusercontent.com/neondatabase/postgres-sample-dbs/b54cb67534bf20775803b181b7a1c6f573422161"
 SAMPLE_DIR="/tmp/sample-dbs"
 
 # schema name -> SQL filename
