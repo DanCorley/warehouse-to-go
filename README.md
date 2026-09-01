@@ -103,7 +103,7 @@ the source. The sink writes each table with a single `CREATE OR REPLACE TABLE ..
 db               DuckDB database  DuckDB schema  DuckDB table   Storage
 ─────────────────────────────────────────────────────────────────────────────────────
 Snowflake        database         schema         table          one .duckdb per database, ATTACHed
-Postgres         _default         schema         table          one .duckdb by default
+Postgres         database         schema         table          one .duckdb per database, ATTACHed
 BigQuery         project          dataset        table          one .duckdb per project, ATTACHed
 ```
 
@@ -246,13 +246,13 @@ The sink, CLI, and manifest parser never change — your adapter only produces
 | Warehouse | Status |
 |---|---|
 | Snowflake | ✅ Reference adapter (live connection + CLI end-to-end) |
-| Postgres | 🚧 Planned — `psycopg` + DuckDB transpile is a quick win |
+| Postgres | ✅ DuckDB `postgres_scanner` + multi-schema layout. End-to-end sample in [`POSTGRES_ADAPTER.md`](POSTGRES_ADAPTER.md) |
 | BigQuery | 🚧 Planned — service-account keyfile auth; native DuckDB extension |
 
 
 ## 🔎 What's tested
 
-The suite (13 tests) locks the machinery — nothing here should silently regress:
+The suite locks the machinery — nothing here should silently regress:
 
 - **Registry** — the adapter registry starts empty, dispatches by `warehouse.type`, and raises a
   clear error for unknown types
@@ -264,4 +264,7 @@ The suite (13 tests) locks the machinery — nothing here should silently regres
 - **Config** — `from_dbt_profile` reads the warehouse `type` from the profile, strips dbt-only
   keys, validates the type selector against the registered adapters, and preserves generic
   provider fields
-
+- **Adapters** — each adapter module is tested in isolation (no live warehouse needed):
+  registry dispatch by `warehouse.type`, injection-safe `build_fetch_query` (manifest values
+  can't escape into SQL), `CatalogLayout` mapping schemas and tables onto sibling `.duckdb`
+  files, and correct path resolution for the on-disk mirror
