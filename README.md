@@ -246,7 +246,7 @@ The sink, CLI, and manifest parser never change — your adapter only produces
 | Warehouse | Status |
 |---|---|
 | Snowflake | ✅ Reference adapter (live connection + CLI end-to-end) |
-| Postgres | ✅ DuckDB `postgres_scanner` + multi-schema layout. End-to-end sample in [`POSTGRES_ADAPTER.md`](POSTGRES_ADAPTER.md) |
+| Postgres | ✅ DuckDB `postgres_scanner` + multi-schema layout. End-to-end sample in [`POSTGRES_ADAPTER.md`](warehouse_to_go/warehouse/POSTGRES_ADAPTER.md) |
 | BigQuery | 🚧 Planned — service-account keyfile auth; native DuckDB extension |
 
 

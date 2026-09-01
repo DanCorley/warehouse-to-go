@@ -128,9 +128,11 @@ class PostgresAdapter(SourceAdapter):
     # writes to ``<database>.<schema>.<table>`` using the payload we return, so
     # the namespace dbt later reads stays faithful to the warehouse.
     def _qualified_reference(self, identifier: Identifier) -> str:
+        table = identifier.table.replace('"', '""')
         if identifier.schema:
-            return f'"{identifier.schema}"."{identifier.table}"'
-        return f'"{identifier.table}"'
+            schema = identifier.schema.replace('"', '""')
+            return f'"{schema}"."{table}"'
+        return f'"{table}"'
 
     def build_fetch_query(self, identifier: Identifier) -> str:
         return f"SELECT * FROM __pg.{self._qualified_reference(identifier)}"

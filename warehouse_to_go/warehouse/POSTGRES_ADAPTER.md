@@ -49,12 +49,12 @@ the sink already uses — no psycopg, no pyarrow construction.
 
 ```bash
 # 1. Seed Postgres with the 6 Neon sample schemas
-cd docker/postgres && docker compose up -d
+docker compose -f docker/postgres/docker-compose.yml up -d
 
 # 2. Extract (postgres adapter) -> one sibling .duckdb per database
 uv run warehouse-to-go -p portable_warehouse -t postgres \
     -m dbt/postgres_sample/target/manifest.json extract
-#    -> produces dbt/postgres_sample/postgres.duckdb
+#    -> produces postgres.duckdb
 
 # 3. Run dbt against the local DuckDB mirror (transpiles Postgres SQL on the fly)
 cd dbt/postgres_sample

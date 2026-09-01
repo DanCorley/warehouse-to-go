@@ -26,8 +26,8 @@ reads `postgres.chinook."Album"`, etc.
 
 ## Prerequisites
 
-- `dbt-polyglot` (see `packages.yml`) — installed via `dbt deps`.
-- Postgres running from `../docker/postgres/` (see that README).
+- `dbt-polyglot` — installed into the project environment by `uv sync --extra dev`.
+- Postgres running from `../../docker/postgres/` (see that README).
 
 ## Run it
 
