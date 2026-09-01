@@ -1,0 +1,32 @@
+# Postgres sample used to exercise the warehouse-to-go Postgres adapter.
+#
+# Seeds a MULTI-SCHEMA Postgres (six Neon sample schemas inside the
+# default `postgres` database) from a bind-mounted init script —
+# no image build, no extra pip packages.
+#
+#   services.postgres  ->  postgres:16-alpine
+#   ports               ->  127.0.0.1:5433:5432
+#   auth                ->  user=warehouse_to_go  password=postgres_demo
+#
+# On first boot the entrypoint runs 01-load-sample-dbs.sh, which downloads
+# and loads six Neon sample schemas into the `postgres` database.
+#
+# `pgdata` is a named volume so the seed persists between runs.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wh2g-postgres-sample
+    environment:
+      POSTGRES_USER: warehouse_to_go
+      POSTGRES_PASSWORD: postgres_demo
+      POSTGRES_DB: postgres
+    # Bind-mount the init script (create DBs + seed). First-boot only.
+    volumes:
+      - ./01-load-sample-dbs.sh:/docker-entrypoint-initdb.d/01-load-sample-dbs.sh:ro
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+
+volumes:
+  pgdata:
