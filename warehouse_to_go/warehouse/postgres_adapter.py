@@ -50,18 +50,25 @@ class PostgresAdapter(SourceAdapter):
 
     # -- connection ------------------------------------------------------- #
     def _build_connstr(self) -> str:
-        """Build a percent-encoded PostgreSQL URI safe for SQL string literals."""
+        """Build a connection string safe for SQL string literals."""
         raw = self._conn_params()
         user = quote(raw["user"], safe="")
-        password = quote(raw["password"], safe="")
         host = quote(raw["host"], safe="")
         dbname = quote(raw["dbname"], safe="")
         port = int(raw["port"])
         sslmode = raw["sslmode"]
-        connstr = (
-            f"postgresql://{user}:{password}@{host}:{port}"
-            f"/{dbname}?sslmode={sslmode}"
-        )
+        if "password" in raw:
+            password = quote(raw["password"], safe="")
+            connstr = (
+                f"postgresql://{user}:{password}@{host}:{port}"
+                f"/{dbname}?sslmode={sslmode}"
+            )
+        else:
+            passfile = quote(raw["passfile"], safe="")
+            connstr = (
+                f"postgresql://{user}@{host}:{port}"
+                f"/{dbname}?sslmode={sslmode}&passfile={passfile}"
+            )
         # Escape single quotes so the literal cannot break out of ATTACH '...'
         return connstr.replace("'", "''")
 
