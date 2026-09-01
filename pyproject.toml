@@ -22,6 +22,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest==9.1.1",
+    "dbt-core==1.12.3",
+    "dbt-duckdb==1.11.0",
+    "dbt-postgres==1.11.0",
+    "dbt-snowflake==1.12.0",
+    "dbt-polyglot==0.2.0"
 ]
 
 [project.scripts]
@@ -31,6 +36,7 @@ warehouse-to-go = "warehouse_to_go.cli:app"
 # entry-point group; add one module path per dialect.
 [project.entry-points."warehouse_to_go.adapters"]
 snowflake = "warehouse_to_go.warehouse.snowflake_adapter"
+postgres = "warehouse_to_go.warehouse.postgres_adapter"
 
 [tool.setuptools.packages.find]
 where = ["."]
