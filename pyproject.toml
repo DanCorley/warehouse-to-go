@@ -37,6 +37,7 @@ warehouse-to-go = "warehouse_to_go.cli:app"
 [project.entry-points."warehouse_to_go.adapters"]
 snowflake = "warehouse_to_go.warehouse.snowflake_adapter"
 postgres = "warehouse_to_go.warehouse.postgres_adapter"
+bigquery = "warehouse_to_go.warehouse.bigquery_adapter"
 
 [tool.setuptools.packages.find]
 where = ["."]
