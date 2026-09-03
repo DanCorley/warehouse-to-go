@@ -81,7 +81,7 @@ def test_from_dbt_profile_rejects_unknown_type(tmp_path):
 myproj:
   outputs:
     prod:
-      type: bigquery
+      type: legacy_warehouse
       project: p
       dataset: d
   target: prod
@@ -92,7 +92,7 @@ myproj:
             profile_dir=tmp_path, profile_name="myproj", target="prod"
         )
     except ValueError as e:
-        assert "bigquery" in str(e)
+        assert "bigquery" in str(e)        # now a *registered* adapter
         assert "snowflake" in str(e)
     else:  # pragma: no cover
         raise AssertionError("expected ValueError for unregistered adapter type")
